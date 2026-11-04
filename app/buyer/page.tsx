@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, Navigation, LocateFixed } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";
+import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, Navigation, LocateFixed } from "lucide-react";
 import Image from "next/image";
-
 
 function Logo() {
   return (
@@ -416,7 +416,7 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-soft" />
               <Input 
                 value={q} 
-                onChange={(e) => setQ(e.target.value)} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} 
                 onFocus={() => setFocus(true)} 
                 onBlur={() => setTimeout(() => setFocus(false), 150)} 
                 placeholder="Cari ikan, nama nelayan, atau daerah..." 
@@ -1057,7 +1057,7 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport }: { nama
       <div className="space-y-2 border-t border-soft/30 bg-white p-3 z-10">
         <div className="flex gap-2 overflow-x-auto">{QUICK.map((c) => <button key={c} disabled={full} onClick={() => send(c)} className="shrink-0 rounded-full border border-brand bg-white px-3 py-1.5 font-sub text-xs font-semibold text-brand hover:bg-surface disabled:opacity-40">{c}</button>)}</div>
         <div className="flex gap-2">
-          <Input value={t} onChange={(e) => setT(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send(t)} disabled={full} placeholder={full ? "Batas 20 pesan hari ini tercapai" : "Tulis pesan..."} className="h-11 rounded-xl border-soft text-ink placeholder:text-soft" />
+          <Input value={t} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setT(e.target.value)} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && send(t)} disabled={full} placeholder={full ? "Batas 20 pesan hari ini tercapai" : "Tulis pesan..."} className="h-11 rounded-xl border-soft text-ink placeholder:text-soft" />
           <Button onClick={() => send(t)} disabled={full} className="size-11 rounded-xl bg-brand text-white hover:bg-brand/90" aria-label="Kirim"><Send size={18} /></Button>
         </div>
       </div>
@@ -1099,7 +1099,7 @@ function HelpCenterView({ onBack, onChatAdmin }: { onBack: () => void; onChatAdm
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-soft" />
         <Input 
           value={searchFaq} 
-          onChange={(e) => setSearchFaq(e.target.value)} 
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchFaq(e.target.value)} 
           placeholder="Cari kendala, pengiriman, atau pembayaran..." 
           className="h-12 rounded-2xl border border-soft bg-surface pl-11 pr-4 text-ink placeholder:text-soft shadow-sm"
         />
@@ -1227,10 +1227,10 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
     }
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
-  e.preventDefault();
-  onSave({ ...user, nama, email, phone, photoUrl });
-  onClose();
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    onSave({ ...user, nama, email, phone, photoUrl });
+    onClose();
   };
 
   return (
@@ -1258,15 +1258,15 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
         <div className="space-y-3 text-xs font-semibold text-ink">
           <div>
             <label className="block mb-1">Nama Lengkap</label>
-            <Input value={nama} onChange={(e: any) => setNama(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
+            <Input value={nama} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNama(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
           </div>
           <div>
             <label className="block mb-1">Email</label>
-            <Input type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
+            <Input type="email" value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
           </div>
           <div>
             <label className="block mb-1">Nomor WhatsApp / HP</label>
-            <Input type="tel" value={phone} onChange={(e: any) => setPhone(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
+            <Input type="tel" value={phone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
           </div>
         </div>
 
@@ -1278,7 +1278,6 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
   );
 }
 
-/* MODAL EDIT ALAMAT DENGAN FITUR PICKER TITIK LOKASI (SHOPEE STYLE) */
 function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClose: () => void; onSave: (updated: Partial<UserProfile>) => void }) {
   const [alamat, setAlamat] = useState(user.alamat);
   const [kotaKecamatan, setKotaKecamatan] = useState(user.kotaKecamatan);
@@ -1287,13 +1286,11 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
   const [lng, setLng] = useState(user.lng);
   const [isLocating, setIsLocating] = useState(false);
 
-  // Simulasi geser pin di atas map
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Konversi posisi klik visual ke perubahan lat lng koordinat
     const newLat = Number((-6.93 + (y / rect.height) * 0.02).toFixed(4));
     const newLng = Number((107.77 + (x / rect.width) * 0.02).toFixed(4));
     setLat(newLat);
@@ -1341,12 +1338,10 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
             onClick={handleMapClick}
             className="relative h-44 w-full overflow-hidden rounded-2xl border border-soft/80 bg-[#e5e3df] cursor-pointer shadow-inner group"
           >
-            {/* BACKGROUND SIMULASI PETA */}
             <div className="absolute inset-0 bg-[radial-gradient(#0B6E99_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
             <div className="absolute inset-x-0 top-1/2 h-10 bg-white/60 -translate-y-1/2 -rotate-6 pointer-events-none" />
             <div className="absolute inset-y-0 left-1/2 w-10 bg-white/60 -translate-x-1/2 rotate-12 pointer-events-none" />
 
-            {/* PIN LOKASI YANG BISA DIKLIK / DIGESER */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none transition-transform duration-200 group-hover:scale-110">
               <div className="rounded-md bg-ink text-white px-2 py-0.5 text-[10px] font-bold shadow-md whitespace-nowrap mb-1">
                 Klik untuk atur titik
@@ -1361,13 +1356,12 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
           <p className="text-[11px] text-ink/60">Klik area peta di atas untuk menyesuaikan titik tepat kurir mengantar ikan.</p>
         </div>
 
-        {/* INPUT FORM MANUAL */}
         <div className="space-y-3 text-xs font-semibold text-ink border-t border-soft/40 pt-3">
           <div>
             <label className="block mb-1">Alamat Jalan / Gedung / Nomor Rumah</label>
             <textarea 
               value={alamat} 
-              onChange={(e) => setAlamat(e.target.value)} 
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlamat(e.target.value)} 
               rows={2} 
               required 
               placeholder="Jl. Melati No. 12, RT 02/RW 05" 
@@ -1379,7 +1373,7 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               <label className="block mb-1">Kota & Kecamatan</label>
               <Input 
                 value={kotaKecamatan} 
-                onChange={(e: any) => setKotaKecamatan(e.target.value)} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKotaKecamatan(e.target.value)} 
                 required
                 placeholder="Jatinangor, Sumedang" 
                 className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
@@ -1389,7 +1383,7 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               <label className="block mb-1">Patokan Kurir (Opsional)</label>
               <Input 
                 value={patokan} 
-                onChange={(e: any) => setPatokan(e.target.value)} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPatokan(e.target.value)} 
                 placeholder="Depan toko kelontong" 
                 className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
               />
@@ -1459,7 +1453,7 @@ function ReportSheet({ fisherName, onClose, onSubmit }: { fisherName: string; on
           <label className="block text-xs font-semibold text-ink">Detail Laporan (Opsional / Wajib jika Lainnya)</label>
           <textarea 
             value={customNote} 
-            onChange={(e) => setCustomNote(e.target.value)} 
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomNote(e.target.value)} 
             rows={3} 
             placeholder="Jelaskan kronologi atau alasan detail pelaporan..." 
             className="w-full rounded-xl border border-soft p-3 text-sm text-ink placeholder:text-soft outline-none focus:border-brand" 
@@ -1506,7 +1500,7 @@ function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productNa
 
         <textarea 
           value={note} 
-          onChange={(e) => setNote(e.target.value)} 
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNote(e.target.value)} 
           rows={3} 
           placeholder="Ceritakan kesegaran ikan, rasa, atau kondisi saat tiba..." 
           className="w-full rounded-xl border border-soft p-3 text-sm text-ink placeholder:text-soft outline-none focus:border-brand" 
@@ -1544,7 +1538,6 @@ export default function Page() {
   
   const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
 
-  // STATE PROFIL USER PEMBELI
   const [userProfile, setUserProfile] = useState<UserProfile>({
     nama: "Ushi",
     email: "ushi@email.com",
