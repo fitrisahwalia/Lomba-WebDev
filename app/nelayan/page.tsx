@@ -42,7 +42,23 @@ function TelegramView({ linked, onLink, onUnlink, flash }: { linked: boolean; on
     const t = setInterval(() => setLeft((s) => { if (s <= 1) { setCode(null); return 0; } return s - 1; }), 1000);
     return () => clearInterval(t);
   }, [code]);
-  const gen = () => { setCode(String(Math.floor(100000 + Math.random() * 900000))); setLeft(600); };
+const gen = async () => {
+  try {
+    // Panggil API backend untuk buat kode asli & simpan ke Supabase
+    const res = await fetch("/api/nelayan/generate-code", { method: "POST" });
+    const data = await res.json();
+
+    if (data.kode) {
+      setCode(data.kode);
+      setLeft(600); // Waktu berlaku 10 menit (600 detik)
+      flash("Kode tautan berhasil dibuat dan disimpan di server!");
+    } else {
+      flash("Gagal membuat kode tautan.");
+    }
+  } catch (err) {
+    flash("Terjadi kesalahan koneksi.");
+  }
+};
   const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 
   if (linked) return (
