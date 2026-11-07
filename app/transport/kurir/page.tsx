@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, Package, MessageCircle, CheckCircle, Check, ChevronDown, LogOut, User, Search, Map, Info, AlertTriangle, X, Navigation, Calendar, Star, Bike, History } from "lucide-react";
+import { useState, useCallback } from "react";
+import { MapPin, Package, MessageCircle, CheckCircle, Check, ChevronDown, LogOut, User, Search, Map, Info, AlertTriangle, X, Navigation, Calendar, Star, Bike, History, LocateFixed } from "lucide-react";
 import Image from "next/image";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+
+const mapContainerStyle = {
+  width: "100%",
+  height: "288px",
+};
 
 function Logo() {
   return (
@@ -22,15 +30,17 @@ type Paket = {
   jarak: string;
   status: StatusPaket;
   noHp: string;
+  lat: number;
+  lng: number;
   masalah?: string;
 };
 
 const DATA_AWAL: Paket[] = [
-  { id: "JL-1001-A", pembeli: "Ibu Ani", isi: "2 kg Kakap Merah", alamat: "Jl. Melati No 12 (Masuk Gang Gapura Merah), RT 04/RW 08, Kel. Sukamiskin, Kec. Arcamanik, Kota Bandung, Jawa Barat 40293", jarak: "2.5 km", status: "Di Gudang", noHp: "08123456789" },
-  { id: "JL-1002-B", pembeli: "Bapak Budi", isi: "1 kg Cumi-cumi", alamat: "Perumahan Indah Blok C4 No 10, Jl. Soekarno Hatta No 72, Kel. Batununggal, Kec. Bandung Kidul, Kota Bandung, Jawa Barat 40266", jarak: "4.1 km", status: "Di Gudang", noHp: "08987654321" },
-  { id: "JL-1004-A", pembeli: "Warung Nasi Padang", isi: "5 kg Tongkol Segar", alamat: "Jl. Asia Afrika No 99 (Sebelah Bank BJB), Kel. Braga, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40111", jarak: "1.2 km", status: "Sedang Diantar", noHp: "08111222333" },
-  { id: "JL-1005-C", pembeli: "Restoran Seafood 88", isi: "10 kg Udang Windu", alamat: "Jl. Braga No 15 (Patokan ruko cat putih), Kel. Braga, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40111", jarak: "3.8 km", status: "Selesai", noHp: "08555666777" },
-  { id: "JL-1006-D", pembeli: "Siska Saraswati", isi: "3 kg Ikan Bawal", alamat: "Apartemen Sudirman Tower B, Lantai 12 Unit 1205, Jl. Jend. Sudirman No 86, Kota Bandung, Jawa Barat 40183", jarak: "5.5 km", status: "Di Gudang", noHp: "08777888999" },
+  { id: "JL-1001-A", pembeli: "Ibu Ani", isi: "2 kg Kakap Merah", alamat: "Jl. Melati No 12 (Masuk Gang Gapura Merah), RT 04/RW 08, Kel. Sukamiskin, Kec. Arcamanik, Kota Bandung, Jawa Barat 40293", jarak: "2.5 km", status: "Di Gudang", noHp: "08123456789", lat: -6.9147, lng: 107.6841 },
+  { id: "JL-1002-B", pembeli: "Bapak Budi", isi: "1 kg Cumi-cumi", alamat: "Perumahan Indah Blok C4 No 10, Jl. Soekarno Hatta No 72, Kel. Batununggal, Kec. Bandung Kidul, Kota Bandung, Jawa Barat 40266", jarak: "4.1 km", status: "Di Gudang", noHp: "08987654321", lat: -6.9532, lng: 107.6298 },
+  { id: "JL-1004-A", pembeli: "Warung Nasi Padang", isi: "5 kg Tongkol Segar", alamat: "Jl. Asia Afrika No 99 (Sebelah Bank BJB), Kel. Braga, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40111", jarak: "1.2 km", status: "Sedang Diantar", noHp: "08111222333", lat: -6.9211, lng: 107.6110 },
+  { id: "JL-1005-C", pembeli: "Restoran Seafood 88", isi: "10 kg Udang Windu", alamat: "Jl. Braga No 15 (Patokan ruko cat putih), Kel. Braga, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40111", jarak: "3.8 km", status: "Selesai", noHp: "08555666777", lat: -6.9175, lng: 107.6092 },
+  { id: "JL-1006-D", pembeli: "Siska Saraswati", isi: "3 kg Ikan Bawal", alamat: "Apartemen Sudirman Tower B, Lantai 12 Unit 1205, Jl. Jend. Sudirman No 86, Kota Bandung, Jawa Barat 40183", jarak: "5.5 km", status: "Di Gudang", noHp: "08777888999", lat: -6.9198, lng: 107.5923 },
 ];
 
 const RIWAYAT_DATA = [
@@ -69,6 +79,11 @@ export default function KurirDashboard() {
   // States untuk Modals Info & Maps
   const [mapModal, setMapModal] = useState<Paket | null>(null);
   const [infoAkunModal, setInfoAkunModal] = useState(false);
+
+  // Google Maps SDK Loader
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? GOOGLE_MAPS_API_KEY : "",
+  });
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -286,7 +301,7 @@ export default function KurirDashboard() {
                             onClick={() => setMapModal(paket)}
                             className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-bold text-ink hover:bg-slate-50 transition-all"
                           >
-                             Cek Titik
+                            <MapPin size={16} className="text-red-500" /> Cek Titik
                           </button>
                           
                           <button 
@@ -447,7 +462,7 @@ export default function KurirDashboard() {
         </div>
       )}
 
-      {/* Modal Cek Titik Lokasi (Google Maps Embed) */}
+      {/* Modal Cek Titik Lokasi ( Google Maps API React Component Integration ) */}
       {mapModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
@@ -455,9 +470,9 @@ export default function KurirDashboard() {
               <div>
                 <h3 className="font-heading text-lg font-bold text-ink flex items-center gap-2">
                   <MapPin size={20} className="text-red-500" />
-                  Titik Lokasi Pengiriman
+                  Titik Lokasi Buyer
                 </h3>
-                <p className="text-xs font-semibold text-slate-500 mt-1">{mapModal.pembeli}</p>
+                <p className="text-xs font-semibold text-slate-500 mt-1">{mapModal.pembeli} ({mapModal.id})</p>
               </div>
               <button onClick={() => setMapModal(null)} className="rounded-full p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
                 <X size={20} />
@@ -465,18 +480,32 @@ export default function KurirDashboard() {
             </div>
             
             <div className="w-full h-72 bg-slate-100 relative">
-              <iframe
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                loading="lazy"
-                allowFullScreen
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(mapModal.alamat)}&output=embed`}
-              ></iframe>
+              {isLoaded && GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? (
+                <GoogleMap
+                  mapContainerStyle={mapContainerStyle}
+                  center={{ lat: mapModal.lat, lng: mapModal.lng }}
+                  zoom={16}
+                  options={{ disableDefaultUI: false, zoomControl: true }}
+                >
+                  <Marker position={{ lat: mapModal.lat, lng: mapModal.lng }} title={mapModal.pembeli} />
+                </GoogleMap>
+              ) : (
+                <iframe
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={`https://maps.google.com/maps?q=${mapModal.lat},${mapModal.lng}&z=16&output=embed`}
+                ></iframe>
+              )}
+              <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-mono font-bold text-ink shadow-sm z-10">
+                Pin: {mapModal.lat.toFixed(4)}, {mapModal.lng.toFixed(4)}
+              </span>
             </div>
 
             <div className="p-5 bg-white">
-              <p className="text-sm font-medium text-slate-600 mb-4 line-clamp-2">{mapModal.alamat}</p>
+              <p className="text-sm font-semibold text-slate-700 mb-4 line-clamp-2">{mapModal.alamat}</p>
               <div className="flex gap-3">
                 <button 
                   onClick={() => setMapModal(null)}
@@ -486,11 +515,11 @@ export default function KurirDashboard() {
                 </button>
                 <button 
                   onClick={() => {
-                    window.open(`https://maps.google.com/maps?q=${encodeURIComponent(mapModal.alamat)}`, "_blank");
+                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${mapModal.lat},${mapModal.lng}`, "_blank");
                   }}
-                  className="flex-1 flex justify-center items-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white hover:bg-brand/90 transition"
+                  className="flex-1 flex justify-center items-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white hover:bg-brand/90 transition shadow-sm"
                 >
-                  <Navigation size={16} /> Buka di Aplikasi
+                  <Navigation size={16} /> Rute Navigasi
                 </button>
               </div>
             </div>
