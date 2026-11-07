@@ -27,7 +27,10 @@ import {
   Clock,
   PackageCheck,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  Info,
+  ShoppingCart
 } from "lucide-react";
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
@@ -65,9 +68,9 @@ type PesananMasuk = {
   pembeli: string;
   titik: string;
   jadwal: string;
-  totalHarga: number;
+  totalHargaIkan: number; // Murni Penjualan Ikan (Gross Nelayan)
+  totalOngkirTransport: number; // Terpisah - Langsung Masuk ke Admin Transport
   status: StatusPesanan;
-  bisaDicairkan: boolean;
 };
 
 type Msg = { me: boolean; text: string };
@@ -81,6 +84,19 @@ type Conv = {
   msgs: Msg[];
 };
 type Log = { t: string; teks: string };
+
+// KETENTUAN POTONGAN RESMI PLATFORM & HUKUM PERPAJAKAN INDONESIA
+const PLATFORM_FEE_PERCENT = 0.10; // 10% Biaya Layanan JalaLink
+const PAJAK_PPH_PERCENT = 0.005;   // 0.5% PPh Final UMKM Perikanan
+const BIAYA_TRANSFER_BANK = 2500;  // Rp2.500 Biaya BI-FAST
+
+// FUNGSI HITUNG SALDO BERSIH NELAYAN
+const calculateNelayanIncome = (grossIkan: number) => {
+  const platformFee = Math.round(grossIkan * PLATFORM_FEE_PERCENT);
+  const pajakPph = Math.round(grossIkan * PAJAK_PPH_PERCENT);
+  const net = grossIkan - platformFee - pajakPph;
+  return { grossIkan, platformFee, pajakPph, net: Math.max(0, net) };
+};
 
 const REVIEWS_SAMPLE: Record<number, ReviewIkan[]> = {
   1: [
@@ -100,9 +116,9 @@ const IKAN0: Ikan[] = [
 ];
 
 const PESANAN_INITIAL: PesananMasuk[] = [
-  { no: "JL-1002", teks: "2 kg Kakap Merah", pembeli: "Ushi", titik: "Hub Jatinangor", jadwal: "Besok 07.00 - 10.00 WIB", totalHarga: 130000, status: "Sedang Siap / Menunggu Mendarat", bisaDicairkan: false },
-  { no: "JL-1001", teks: "2 kg Tongkol Segar", pembeli: "Pak Budi", titik: "Hub Jatinangor", jadwal: "Kemarin, 08.30 WIB", totalHarga: 64000, status: "Selesai", bisaDicairkan: true },
-  { no: "JL-1006", teks: "4 kg Kakap Merah", pembeli: "Resto Laut Biru", titik: "Hub Sumedang", jadwal: "Besok 07.30 WIB", totalHarga: 260000, status: "Menunggu Kurir", bisaDicairkan: false },
+  { no: "JL-1002", teks: "2 kg Kakap Merah", pembeli: "Ushi", titik: "Hub Jatinangor", jadwal: "Besok 07.00 - 10.00 WIB", totalHargaIkan: 130000, totalOngkirTransport: 15000, status: "Sedang Siap / Menunggu Mendarat" },
+  { no: "JL-1001", teks: "2 kg Tongkol Segar", pembeli: "Pak Budi", titik: "Hub Jatinangor", jadwal: "Kemarin, 08.30 WIB", totalHargaIkan: 64000, totalOngkirTransport: 8000, status: "Selesai" },
+  { no: "JL-1006", teks: "4 kg Kakap Merah", pembeli: "Resto Laut Biru", titik: "Hub Sumedang", jadwal: "Besok 07.30 WIB", totalHargaIkan: 260000, totalOngkirTransport: 20000, status: "Menunggu Kurir" },
 ];
 
 const CONV0: Conv[] = [
@@ -198,7 +214,7 @@ function TelegramView({
             <Check />
           </span>
           <div className="flex-1">
-            <p className="font-heading text-lg font-bold text-ink">Telegram terhubung</p>
+            <p className="font-heading text-lg font-bold text-ink">Telegram Terhubung</p>
             <p className="text-sm text-ink/60">Akun @pakwayan · bot @JalaLinkBot</p>
           </div>
           <button
@@ -210,12 +226,11 @@ function TelegramView({
           </button>
         </div>
         <div className="rounded-2xl bg-surface p-5 text-sm text-ink">
-          <p className="mb-2 font-sub font-bold">Yang bisa kamu lakukan di bot</p>
+          <p className="mb-2 font-sub font-bold">Fitur Otomatisasi Bot Telegram</p>
           <ul className="list-disc space-y-1 pl-5 text-ink/80">
-            <li>Jual ikan: pilih ikan, jumlah, harga, foto, konfirmasi</li>
-            <li>Ubah harga dan tandai stok habis</li>
-            <li>Balas pertanyaan pembeli dengan tombol, lalu blokir atau laporkan</li>
-            <li>Terima notifikasi pesanan masuk</li>
+            <li>Update stok ikan tangkapan & harga terbaru secara instan.</li>
+            <li>Terima notifikasi pesanan masuk & penyerahan kurir.</li>
+            <li>Status pencairan saldo otomatis dikirim via notifikasi pesan bot.</li>
           </ul>
         </div>
       </div>
@@ -224,7 +239,7 @@ function TelegramView({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-surface p-5">
-        <h2 className="font-heading text-lg font-bold text-ink">Hubungkan Telegram</h2>
+        <h2 className="font-heading text-lg font-bold text-ink">Hubungkan Bot Telegram Nelayan</h2>
         <ol className="mt-3 space-y-2 text-sm text-ink">
           {[
             "Klik “Buat Kode” di bawah.",
@@ -268,15 +283,15 @@ function TelegramView({
             </a>
           </div>
           <button onClick={onLink} className="block mx-auto text-xs text-ink/50 underline mt-2">
-            Demo: anggap kode sudah dimasukkan di Telegram
+            Demo: Anggap kode sudah dimasukkan di Telegram
           </button>
         </div>
       ) : (
         <button
           onClick={gen}
-          className="h-12 w-full rounded-xl bg-[#0E7C86] font-sub text-base font-semibold text-white hover:bg-[#0E7C86]/90"
+          className="h-12 w-full rounded-xl bg-[#0E7C86] font-sub text-base font-semibold text-white hover:bg-[#0E7C86]/90 shadow-sm"
         >
-          Buat Kode
+          Buat Kode Tautan
         </button>
       )}
     </div>
@@ -362,7 +377,7 @@ function ChatView({
 
     setModalLapor(false);
     setDetailLapor("");
-    flash(`Laporan berhasil dikirim ke Admin JalaLink`);
+    flash(`Laporan berhasil dikirim ke Admin CS JalaLink`);
   };
 
   if (!c)
@@ -506,72 +521,38 @@ function ChatView({
 
       {modalBlokir && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-[440px] rounded-[28px] bg-white p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+          <div className="w-full max-w-[440px] rounded-[28px] bg-white p-7 shadow-2xl space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="grid size-9 place-items-center rounded-full bg-[#0E7C86]/10 text-[#0E7C86]">
-                  <Ban size={22} className="stroke-[2.5]" />
+                  <Ban size={22} />
                 </div>
                 <h3 className="font-sub text-xl font-bold text-[#0E7C86]">
                   Blokir Pembeli Ini
                 </h3>
               </div>
-              <button
-                onClick={() => setModalBlokir(false)}
-                className="grid size-9 place-items-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition"
-              >
+              <button onClick={() => setModalBlokir(false)} className="grid size-9 place-items-center rounded-full bg-gray-100 text-gray-500">
                 <X size={18} />
               </button>
             </div>
 
             <div className="space-y-3">
-              {ALASAN_BLOKIR.map((alasan) => {
-                const isSelected = alasanBlokirPilihan === alasan;
-                return (
-                  <label
-                    key={alasan}
-                    onClick={() => setAlasanBlokirPilihan(alasan)}
-                    className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition cursor-pointer ${
-                      isSelected
-                        ? "border-[#0E7C86] bg-[#0E7C86]/5 ring-1 ring-[#0E7C86]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <input
-                        type="radio"
-                        name="alasanBlokir"
-                        checked={isSelected}
-                        onChange={() => setAlasanBlokirPilihan(alasan)}
-                        className="sr-only"
-                      />
-                      <div
-                        className={`size-5 rounded-full border-2 flex items-center justify-center transition ${
-                          isSelected ? "border-[#0E7C86]" : "border-gray-300"
-                        }`}
-                      >
-                        {isSelected && <div className="size-2.5 rounded-full bg-[#0E7C86]" />}
-                      </div>
-                    </div>
-                    <span className="font-sub text-sm font-semibold text-gray-800">{alasan}</span>
-                  </label>
-                );
-              })}
+              {ALASAN_BLOKIR.map((alasan) => (
+                <label
+                  key={alasan}
+                  onClick={() => setAlasanBlokirPilihan(alasan)}
+                  className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition cursor-pointer ${
+                    alasanBlokirPilihan === alasan ? "border-[#0E7C86] bg-[#0E7C86]/5 ring-1 ring-[#0E7C86]" : "border-gray-200"
+                  }`}
+                >
+                  <span className="font-sub text-sm font-semibold text-gray-800">{alasan}</span>
+                </label>
+              ))}
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={() => setModalBlokir(false)}
-                className="h-12 flex-1 rounded-2xl border border-[#0E7C86] font-sub text-sm font-semibold text-[#0E7C86] hover:bg-surface transition"
-              >
-                Batal
-              </button>
-              <button
-                onClick={eksekusiBlokir}
-                className="h-12 flex-1 rounded-2xl bg-[#E50000] font-sub text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-[0.98] transition"
-              >
-                Konfirmasi Blokir
-              </button>
+              <button onClick={() => setModalBlokir(false)} className="h-12 flex-1 rounded-2xl border border-[#0E7C86] font-sub text-sm font-semibold text-[#0E7C86]">Batal</button>
+              <button onClick={eksekusiBlokir} className="h-12 flex-1 rounded-2xl bg-red-600 font-sub text-sm font-semibold text-white">Konfirmasi Blokir</button>
             </div>
           </div>
         </div>
@@ -579,72 +560,21 @@ function ChatView({
 
       {modalLapor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-[440px] rounded-[28px] bg-white p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+          <div className="w-full max-w-[440px] rounded-[28px] bg-white p-7 shadow-2xl space-y-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="grid size-9 place-items-center rounded-full bg-[#0E7C86]/10 text-[#0E7C86]">
-                  <Flag size={20} className="stroke-[2.5]" />
-                </div>
-                <h3 className="font-sub text-xl font-bold text-[#0E7C86]">
-                  Laporkan Pembeli Ini
-                </h3>
-              </div>
-              <button
-                onClick={() => setModalLapor(false)}
-                className="grid size-9 place-items-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition"
-              >
-                <X size={18} />
-              </button>
+              <h3 className="font-sub text-xl font-bold text-[#0E7C86]">Laporkan Pembeli</h3>
+              <button onClick={() => setModalLapor(false)} className="grid size-9 place-items-center rounded-full bg-gray-100"><X size={18} /></button>
             </div>
-
             <div className="space-y-3">
-              {ALASAN_LAPOR.map((alasan) => {
-                const isSelected = alasanLaporPilihan === alasan;
-                return (
-                  <label
-                    key={alasan}
-                    onClick={() => setAlasanLaporPilihan(alasan)}
-                    className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition cursor-pointer ${
-                      isSelected
-                        ? "border-[#0E7C86] bg-[#0E7C86]/5 ring-1 ring-[#0E7C86]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <input
-                        type="radio"
-                        name="alasanLapor"
-                        checked={isSelected}
-                        onChange={() => setAlasanLaporPilihan(alasan)}
-                        className="sr-only"
-                      />
-                      <div
-                        className={`size-5 rounded-full border-2 flex items-center justify-center transition ${
-                          isSelected ? "border-[#0E7C86]" : "border-gray-300"
-                        }`}
-                      >
-                        {isSelected && <div className="size-2.5 rounded-full bg-[#0E7C86]" />}
-                      </div>
-                    </div>
-                    <span className="font-sub text-sm font-semibold text-gray-800">{alasan}</span>
-                  </label>
-                );
-              })}
+              {ALASAN_LAPOR.map((alasan) => (
+                <label key={alasan} onClick={() => setAlasanLaporPilihan(alasan)} className={`flex items-center gap-3.5 p-3.5 rounded-2xl border cursor-pointer ${alasanLaporPilihan === alasan ? "border-[#0E7C86] bg-[#0E7C86]/5" : "border-gray-200"}`}>
+                  <span className="font-sub text-sm font-semibold text-gray-800">{alasan}</span>
+                </label>
+              ))}
             </div>
-
             <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={() => setModalLapor(false)}
-                className="h-12 flex-1 rounded-2xl border border-[#0E7C86] font-sub text-sm font-semibold text-[#0E7C86] hover:bg-surface transition"
-              >
-                Batal
-              </button>
-              <button
-                onClick={eksekusiLapor}
-                className="h-12 flex-1 rounded-2xl bg-[#0E7C86] font-sub text-sm font-semibold text-white shadow-sm hover:bg-[#0E7C86]/90 active:scale-[0.98] transition"
-              >
-                Kirim Laporan
-              </button>
+              <button onClick={() => setModalLapor(false)} className="h-12 flex-1 rounded-2xl border border-[#0E7C86] text-[#0E7C86]">Batal</button>
+              <button onClick={eksekusiLapor} className="h-12 flex-1 rounded-2xl bg-[#0E7C86] text-white">Kirim Laporan</button>
             </div>
           </div>
         </div>
@@ -653,24 +583,67 @@ function ChatView({
   );
 }
 
-// MODAL CAIRKAN UANG
-function ModalCairkanSaldo({ saldoReady, onClose, onConfirm }: { saldoReady: number; onClose: () => void; onConfirm: () => void }) {
+// MODAL CAIRKAN SALDO PENJUALAN IKAN
+function ModalCairkanSaldo({ grossIkanTotal, onClose, onConfirm }: { grossIkanTotal: number; onClose: () => void; onConfirm: () => void }) {
   const [bank, setBank] = useState("BCA");
   const [rekening, setRekening] = useState("7820198821");
 
+  const calc = calculateNelayanIncome(grossIkanTotal);
+  const totalNet = Math.max(0, calc.net - BIAYA_TRANSFER_BANK);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl space-y-4">
+      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-xl font-bold text-ink flex items-center gap-2">
-            <Wallet className="text-[#0E7C86]" /> Cairkan Hasil Penjualan
+            <Wallet className="text-[#0E7C86]" /> Pencairan Saldo Nelayan
           </h3>
           <button onClick={onClose} className="grid size-9 place-items-center rounded-full bg-surface text-ink/60"><X size={18} /></button>
         </div>
 
-        <div className="rounded-2xl bg-[#0E7C86]/10 p-4 text-center">
-          <span className="text-xs text-ink/60 block font-sub font-semibold">Total Saldo Siap Ditarik</span>
-          <span className="font-heading text-3xl font-bold text-[#0E7C86]">{rp(saldoReady)}</span>
+        <div className="rounded-2xl bg-[#0E7C86]/10 p-4 text-center border border-[#0E7C86]/20">
+          <span className="text-xs text-ink/70 block font-sub font-semibold">Saldo Bersih Masuk Rekening (Net)</span>
+          <span className="font-heading text-3xl font-bold text-[#0E7C86]">{rp(totalNet)}</span>
+          <span className="text-[10px] text-ink/50 block mt-0.5">Sudah dipotong Biaya Platform (10%), PPh (0,5%) & BI-FAST</span>
+        </div>
+
+        <div className="rounded-2xl bg-surface p-4 space-y-2 text-xs font-sub text-ink border border-soft/40">
+          <div className="flex justify-between items-center font-bold border-b border-soft/40 pb-2">
+            <span>Total Hasil Jual Ikan (Escrow Produk)</span>
+            <span>{rp(grossIkanTotal)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-ink/70">
+            <span>- Biaya Layanan JalaLink (10%)</span>
+            <span className="text-red-600 font-semibold">-{rp(calc.platformFee)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-ink/70">
+            <span className="flex items-center gap-1">
+              - PPh Final UMKM Perikanan (0,5%)
+              <span title="Disetor ke Pajak Indonesia" className="inline-flex items-center">
+                <ShieldCheck size={13} className="text-emerald-700" />
+              </span>
+            </span>
+            <span className="text-red-600 font-semibold">-{rp(calc.pajakPph)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-ink/70">
+            <span>- Biaya Transfer Bank (BI-FAST)</span>
+            <span className="text-red-600 font-semibold">-{rp(BIAYA_TRANSFER_BANK)}</span>
+          </div>
+
+          <div className="border-t border-soft/40 pt-2 flex justify-between items-center font-bold text-ink text-sm">
+            <span>Transfer Bersih ke Nelayan</span>
+            <span className="text-[#0E7C86]">{rp(totalNet)}</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-[11px] text-blue-900 flex items-start gap-2">
+          <Info size={16} className="text-blue-700 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            <b>Info Transport & Kurir:</b> Ongkos kirim tidak termasuk di dalam saldo ini. 100% ongkir disalurkan langsung ke Admin Transportasi & dikelola internal armada supir.
+          </p>
         </div>
 
         <div className="space-y-3 text-xs font-semibold text-ink">
@@ -684,14 +657,14 @@ function ModalCairkanSaldo({ saldoReady, onClose, onConfirm }: { saldoReady: num
             </select>
           </div>
           <div>
-            <label className="block mb-1">Nomor Rekening / HP DANA</label>
+            <label className="block mb-1">Nomor Rekening / HP DANA Target</label>
             <input value={rekening} onChange={(e) => setRekening(e.target.value)} className="w-full h-11 rounded-xl border border-soft px-3 font-sub text-sm outline-none" />
           </div>
         </div>
 
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 h-11 rounded-xl border border-soft font-sub text-sm font-semibold text-ink">Batal</button>
-          <button onClick={onConfirm} className="flex-1 h-11 rounded-xl bg-[#0E7C86] font-sub text-sm font-semibold text-white shadow-sm hover:bg-[#0E7C86]/90">Konfirmasi Tarik</button>
+          <button onClick={onConfirm} className="flex-1 h-11 rounded-xl bg-[#0E7C86] font-sub text-sm font-semibold text-white shadow-sm hover:bg-[#0E7C86]/90">Tarik ke Rekening</button>
         </div>
       </div>
     </div>
@@ -787,6 +760,7 @@ export default function NelayanPage() {
     setToast(m);
     setTimeout(() => setToast(""), 3000);
   };
+
   const go = (t: Tab) => {
     setTab(t);
     setActive(null);
@@ -794,16 +768,59 @@ export default function NelayanPage() {
   };
   const unread = convs.reduce((a, c) => a + c.unread, 0);
 
-  const saldoReady = pesananList.filter((p) => p.status === "Selesai").reduce((acc, p) => acc + p.totalHarga, 0);
-  const saldoEscrow = pesananList.filter((p) => p.status !== "Selesai").reduce((acc, p) => acc + p.totalHarga, 0);
+  // SALDO GROSS SELESAI
+  const grossIkanSelesai = pesananList
+    .filter((p) => p.status === "Selesai")
+    .reduce((acc, p) => acc + p.totalHargaIkan, 0);
 
+  // SALDO TERTAHAN ESCROW PROSES
+  const grossIkanProses = pesananList
+    .filter((p) => p.status !== "Selesai")
+    .reduce((acc, p) => acc + p.totalHargaIkan, 0);
+
+  // HITUNG SALDO NET BERSIH
+  const netSelesai = calculateNelayanIncome(grossIkanSelesai).net;
+
+  // UBAH HARGA MANUAL (SINKRON DENGAN TELEGRAM & KATALOG)
   const setHarga = (l: Ikan, h: number) => {
     if (!h || h <= 0 || h === l.harga) return;
     setIkan((a) =>
       a.map((x) => (x.id === l.id ? { ...x, harga: h, sumber: "Web", waktu: now() } : x))
     );
-    setLog((g) => [{ t: now(), teks: `Harga ${l.nama} diubah di web jadi ${rp(h)}` }, ...g]);
-    flash("Harga diperbarui di katalog");
+    setLog((g) => [{ t: now(), teks: `Harga ${l.nama} diubah di web jadi ${rp(h)} (Sync Bot Tele)` }, ...g]);
+    flash("Harga diperbarui di katalog & Bot Telegram");
+  };
+
+  // EDIT STOK MANUAL OLEH NELAYAN (SINKRON TELEGRAM)
+  const setStokManual = (l: Ikan, stokBaru: number) => {
+    if (stokBaru < 0 || stokBaru === l.stok) return;
+    const isHabis = stokBaru === 0;
+    setIkan((a) =>
+      a.map((x) => (x.id === l.id ? { ...x, stok: stokBaru, habis: isHabis, sumber: "Web", waktu: now() } : x))
+    );
+    setLog((g) => [{ t: now(), teks: `Stok ${l.nama} diubah di web menjadi ${stokBaru} kg` }, ...g]);
+    flash(`Stok ${l.nama} berhasil diperbarui (${stokBaru} kg)`);
+  };
+
+  // PENGURANGAN STOK OTOMATIS SAAT PEMBELI CHECKOUT
+  const kurangiStokOtomatis = (ikanId: number, jumlahKg: number) => {
+    setIkan((prev) =>
+      prev.map((item) => {
+        if (item.id === ikanId) {
+          const sisaStok = Math.max(0, item.stok - jumlahKg);
+          const isHabis = sisaStok === 0;
+          setLog((g) => [{ t: now(), teks: `Pembeli checkout ${jumlahKg} kg ${item.nama}. Stok sisa ${sisaStok} kg` }, ...g]);
+          return {
+            ...item,
+            stok: sisaStok,
+            habis: isHabis,
+            waktu: now()
+          };
+        }
+        return item;
+      })
+    );
+    flash(`Stok otomatis berkurang karena checkout pembeli`);
   };
 
   const toggleHabis = (l: Ikan) => {
@@ -817,16 +834,7 @@ export default function NelayanPage() {
   };
 
   const updateStatusPesanan = (no: string, newStatus: StatusPesanan) => {
-    setPesananList((prev) => prev.map((p) => {
-      if (p.no === no) {
-        return {
-          ...p,
-          status: newStatus,
-          bisaDicairkan: newStatus === "Selesai"
-        };
-      }
-      return p;
-    }));
+    setPesananList((prev) => prev.map((p) => (p.no === no ? { ...p, status: newStatus } : p)));
     flash(`Status pesanan ${no} diperbarui ke "${newStatus}"`);
   };
 
@@ -843,8 +851,8 @@ export default function NelayanPage() {
           )
         : [{ id: Date.now(), nama, harga, stok, habis: false, sumber: "Telegram", waktu: t, rating: 5.0, totalUlasan: 0, reviews: [] }, ...a]
     );
-    setLog((g) => [{ t, teks: `${nama} ${stok} kg @ ${rp(harga)} dari Telegram` }, ...g]);
-    flash("Stok dari Telegram sudah tampil di web");
+    setLog((g) => [{ t, teks: `${nama} +${stok} kg @ ${rp(harga)} diinput dari Bot Telegram` }, ...g]);
+    flash("Stok baru dari Telegram otomatis ter-sync di web!");
   };
 
   const aktif = ikan.filter((i) => !i.habis);
@@ -902,17 +910,20 @@ export default function NelayanPage() {
           {tab === "home" && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <h1 className="font-heading text-2xl font-bold md:text-3xl">Halo, Pak Wayan!</h1>
+                <div>
+                  <h1 className="font-heading text-2xl font-bold md:text-3xl">Halo, Pak Wayan!</h1>
+                  <p className="text-xs text-ink/60">Dashboard Penjualan Ikan & Status Escrow</p>
+                </div>
                 
-                {/* SECTION WIDGET CAIRKAN UANG */}
+                {/* WIDGET CAIRKAN UANG NET BERSIH */}
                 <div className="flex items-center gap-3 rounded-2xl bg-surface p-3.5 border border-soft/40 shadow-sm">
                   <div>
-                    <span className="text-[11px] text-ink/60 font-sub font-semibold block">Penghasilan Siap Dicairkan</span>
-                    <span className="font-heading text-xl font-bold text-[#0E7C86]">{rp(saldoReady)}</span>
+                    <span className="text-[11px] text-ink/60 font-sub font-semibold block">Net Penjualan Ikan</span>
+                    <span className="font-heading text-xl font-bold text-[#0E7C86]">{rp(netSelesai)}</span>
                   </div>
                   <button 
                     onClick={() => setModalCairkan(true)} 
-                    disabled={saldoReady <= 0}
+                    disabled={grossIkanSelesai <= 0}
                     className="flex items-center gap-1 rounded-xl bg-[#0E7C86] px-4 py-2 font-sub text-xs font-bold text-white shadow-sm hover:bg-[#0E7C86]/90 disabled:opacity-40 transition"
                   >
                     <ArrowUpRight size={16} /> Cairkan
@@ -927,9 +938,9 @@ export default function NelayanPage() {
                 >
                   <Send />
                   <span className="flex-1">
-                    <b className="block font-sub">Hubungkan Telegram</b>
+                    <b className="block font-sub">Hubungkan Telegram Bot</b>
                     <span className="text-sm text-white/80">
-                      Supaya bisa jual ikan dan terima pesanan lewat bot.
+                      Supaya bisa jual ikan dan terima pesanan langsung via HP.
                     </span>
                   </span>
                 </button>
@@ -937,10 +948,10 @@ export default function NelayanPage() {
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 {[
-                  ["Ikan aktif", `${aktif.length}`],
-                  ["Total stok", `${aktif.reduce((a, i) => a + i.stok, 0)} kg`],
-                  ["Pesanan masuk", `${pesananList.length}`],
-                  ["Saldo Escrow", rp(saldoEscrow)],
+                  ["Ikan Aktif", `${aktif.length}`],
+                  ["Total Stok", `${aktif.reduce((a, i) => a + i.stok, 0)} kg`],
+                  ["Pesanan Masuk", `${pesananList.length}`],
+                  ["Nilai Escrow Ikan", rp(grossIkanProses)],
                 ].map(([l, v]) => (
                   <div key={l} className="rounded-2xl bg-surface p-4 border border-soft/30 shadow-sm">
                     <p className="text-xs text-ink/60 font-semibold">{l}</p>
@@ -954,9 +965,9 @@ export default function NelayanPage() {
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
                     <Bell size={18} className="text-[#0E7C86]" />
-                    Status Pesanan Masuk & Tracking
+                    Status Pesanan Masuk & Tracking Escrow
                   </h2>
-                  <span className="text-xs text-ink/60 font-semibold">Terkoneksi Sistem Escrow</span>
+                  <span className="text-xs text-ink/60 font-semibold">Terkoneksi Sistem Platform JalaLink</span>
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-soft/40 bg-white shadow-sm">
@@ -967,51 +978,58 @@ export default function NelayanPage() {
                           <th className="p-3.5">No. Pesanan</th>
                           <th className="p-3.5">Detail Tangkapan</th>
                           <th className="p-3.5">Pembeli</th>
-                          <th className="p-3.5">Tujuan Hub</th>
-                          <th className="p-3.5">Status Alur Transaksi</th>
+                          <th className="p-3.5">Harga Ikan (Gross)</th>
+                          <th className="p-3.5">Ongkir (Transport Admin)</th>
+                          <th className="p-3.5">Net Nelayan</th>
+                          <th className="p-3.5">Status Alur</th>
                           <th className="p-3.5 text-right">Aksi Nelayan</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-soft/30 text-ink">
-                        {pesananList.map((p) => (
-                          <tr key={p.no} className="hover:bg-surface/50 transition">
-                            <td className="p-3.5 font-bold text-[#0E7C86] whitespace-nowrap">{p.no}</td>
-                            <td className="p-3.5 font-semibold">{p.teks}</td>
-                            <td className="p-3.5">{p.pembeli}</td>
-                            <td className="p-3.5">{p.titik}</td>
-                            <td className="p-3.5">
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                                p.status === "Selesai" 
-                                  ? "bg-emerald-100 text-emerald-800" 
-                                  : p.status === "Sedang Diantar" 
-                                  ? "bg-blue-100 text-blue-800" 
-                                  : "bg-amber-100 text-amber-800"
-                              }`}>
-                                {p.status === "Selesai" ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                                {p.status}
-                              </span>
-                            </td>
-                            <td className="p-3.5 text-right whitespace-nowrap">
-                              {p.status === "Sedang Siap / Menunggu Mendarat" && (
-                                <button
-                                  onClick={() => updateStatusPesanan(p.no, "Menunggu Kurir")}
-                                  className="rounded-xl bg-[#0E7C86] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#0E7C86]/90 transition"
-                                >
-                                  Konfirmasi Siap Diambil Kurir
-                                </button>
-                              )}
-                              {p.status === "Menunggu Kurir" && (
-                                <span className="text-[11px] text-ink/60 italic font-medium">Menunggu Armada Hub</span>
-                              )}
-                              {p.status === "Sedang Diantar" && (
-                                <span className="text-[11px] text-blue-700 font-semibold">Kurir Sedang Antar</span>
-                              )}
-                              {p.status === "Selesai" && (
-                                <span className="text-[11px] text-emerald-700 font-bold">Dana Terverifikasi</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {pesananList.map((p) => {
+                          const calc = calculateNelayanIncome(p.totalHargaIkan);
+                          return (
+                            <tr key={p.no} className="hover:bg-surface/50 transition">
+                              <td className="p-3.5 font-bold text-[#0E7C86] whitespace-nowrap">{p.no}</td>
+                              <td className="p-3.5 font-semibold">{p.teks}</td>
+                              <td className="p-3.5">{p.pembeli}</td>
+                              <td className="p-3.5 font-bold">{rp(p.totalHargaIkan)}</td>
+                              <td className="p-3.5 text-ink/60 italic">{rp(p.totalOngkirTransport)}</td>
+                              <td className="p-3.5 font-bold text-emerald-700">{rp(calc.net)}</td>
+                              <td className="p-3.5">
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                                  p.status === "Selesai" 
+                                    ? "bg-emerald-100 text-emerald-800" 
+                                    : p.status === "Sedang Diantar" 
+                                    ? "bg-blue-100 text-blue-800" 
+                                    : "bg-amber-100 text-amber-800"
+                                }`}>
+                                  {p.status === "Selesai" ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                                  {p.status}
+                                </span>
+                              </td>
+                              <td className="p-3.5 text-right whitespace-nowrap">
+                                {p.status === "Sedang Siap / Menunggu Mendarat" && (
+                                  <button
+                                    onClick={() => updateStatusPesanan(p.no, "Menunggu Kurir")}
+                                    className="rounded-xl bg-[#0E7C86] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#0E7C86]/90 transition"
+                                  >
+                                    Konfirmasi Siap Diambil Kurir
+                                  </button>
+                                )}
+                                {p.status === "Menunggu Kurir" && (
+                                  <span className="text-[11px] text-ink/60 italic font-medium">Menunggu Armada CS</span>
+                                )}
+                                {p.status === "Sedang Diantar" && (
+                                  <span className="text-[11px] text-blue-700 font-semibold">Diantar Kurir</span>
+                                )}
+                                {p.status === "Selesai" && (
+                                  <span className="text-[11px] text-emerald-700 font-bold">Dana Masuk Saldo</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1023,20 +1041,42 @@ export default function NelayanPage() {
           {tab === "stok" && (
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h1 className="font-heading text-2xl font-bold">Stok & Listing Tangkapan</h1>
-                <span
-                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 font-sub text-xs font-semibold ${
-                    linked ? "bg-[#0E7C86]/10 text-[#0E7C86]" : "bg-surface text-ink/60"
-                  }`}
-                >
+                <div>
+                  <h1 className="font-heading text-2xl font-bold">Stok & Listing Tangkapan</h1>
+                  <p className="text-xs text-ink/60">Edit harga, stok, dan lihat ulasan pembeli per produk</p>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <span
-                    className={`size-2 rounded-full ${
-                      linked ? "animate-pulse bg-[#0E7C86]" : "bg-soft"
+                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 font-sub text-xs font-semibold ${
+                      linked ? "bg-[#0E7C86]/10 text-[#0E7C86]" : "bg-surface text-ink/60"
                     }`}
-                  />
-                  {linked ? "Sinkron dengan Telegram" : "Telegram belum terhubung"}
-                </span>
+                  >
+                    <span
+                      className={`size-2 rounded-full ${
+                        linked ? "animate-pulse bg-[#0E7C86]" : "bg-soft"
+                      }`}
+                    />
+                    {linked ? "Sync Bot Telegram" : "Telegram Belum Terhubung"}
+                  </span>
+                </div>
               </div>
+
+              {/* TOMBOL TEST SIMULASI CHECKOUT PEMBELI OTOMATIS KURANGI STOK */}
+              <div className="rounded-2xl bg-surface p-4 border border-soft/40 flex items-center justify-between flex-wrap gap-2 text-xs">
+                <span className="font-sub font-semibold text-ink flex items-center gap-2">
+                  <ShoppingCart size={16} className="text-[#0E7C86]" /> Uji Alur Pengurangan Stok Otomatis Saat Pembeli Beli:
+                </span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => kurangiStokOtomatis(1, 5)} 
+                    className="rounded-xl border border-[#0E7C86] bg-white px-3 py-1.5 font-bold text-[#0E7C86] hover:bg-surface"
+                  >
+                    Simulasi Pembeli Checkout 5 kg Kakap
+                  </button>
+                </div>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 {ikan.map((l) => (
                   <div key={l.id} className="space-y-3 rounded-3xl bg-surface p-5 border border-soft/40 shadow-sm">
@@ -1063,25 +1103,33 @@ export default function NelayanPage() {
                       >
                         <Star size={14} className="fill-[#0E7C86]" /> {l.rating} ({l.totalUlasan} Ulasan Pembeli) &rsaquo;
                       </button>
-                      <span className="text-xs text-ink/60">Rating Produk</span>
+                      <span className="text-xs text-ink/60">Ulasan & Rating</span>
                     </div>
 
+                    {/* INPUT EDIT HARGA DAN INPUT EDIT STOK */}
                     <div className="grid grid-cols-2 gap-3">
                       <label className="text-xs text-ink/60 font-semibold">
                         Harga per kg
                         <input
-                          key={l.harga}
+                          key={`harga-${l.id}-${l.harga}`}
                           type="number"
                           defaultValue={l.harga}
                           onBlur={(e) => setHarga(l, Number(e.target.value))}
-                          className="mt-1 h-11 w-full rounded-xl border border-soft bg-white px-3 text-ink outline-none focus:border-[#0E7C86]"
+                          className="mt-1 h-11 w-full rounded-xl border border-soft bg-white px-3 text-ink outline-none focus:border-[#0E7C86] font-bold"
                         />
                       </label>
-                      <div>
-                        <p className="text-xs text-ink/60 font-semibold">Sisa Stok</p>
-                        <p className="mt-2 font-heading text-xl font-bold">{l.stok} kg</p>
-                      </div>
+                      <label className="text-xs text-ink/60 font-semibold">
+                        Sisa Stok (kg)
+                        <input
+                          key={`stok-${l.id}-${l.stok}`}
+                          type="number"
+                          defaultValue={l.stok}
+                          onBlur={(e) => setStokManual(l, Number(e.target.value))}
+                          className="mt-1 h-11 w-full rounded-xl border border-soft bg-white px-3 text-ink outline-none focus:border-[#0E7C86] font-bold"
+                        />
+                      </label>
                     </div>
+
                     <button
                       onClick={() => toggleHabis(l)}
                       className="h-11 w-full rounded-xl border border-[#0E7C86] bg-white font-sub font-semibold text-[#0E7C86] hover:bg-surface transition"
@@ -1091,9 +1139,11 @@ export default function NelayanPage() {
                   </div>
                 ))}
               </div>
+
+              {/* LOG SINKRONISASI */}
               <section className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-heading text-lg font-bold">Log sinkronisasi</h2>
+                  <h2 className="font-heading text-lg font-bold">Log Sinkronisasi Telegram & Web</h2>
                   {linked && (
                     <button
                       onClick={simulate}
@@ -1106,16 +1156,16 @@ export default function NelayanPage() {
                 </div>
                 {log.length === 0 ? (
                   <p className="rounded-2xl bg-surface p-4 text-sm text-ink/60">
-                    Belum ada perubahan. Stok yang kamu input di Telegram akan muncul di sini dan di katalog.
+                    Belum ada perubahan. Stok yang diubah di web, dibeli pembeli, atau diinput via Telegram akan terekam di sini.
                   </p>
                 ) : (
                   log.map((g, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-xl bg-surface p-3 text-sm">
+                    <div key={i} className="flex items-center gap-3 rounded-xl bg-surface p-3 text-sm border border-soft/30">
                       <span className="grid size-6 place-items-center rounded-full bg-[#0E7C86] text-white">
                         <Check size={14} />
                       </span>
-                      <span className="flex-1">{g.teks}</span>
-                      <span className="text-xs text-ink/50">{g.t}</span>
+                      <span className="flex-1 font-sub text-xs text-ink">{g.teks}</span>
+                      <span className="text-[10px] text-ink/50">{g.t}</span>
                     </div>
                   ))
                 )}
@@ -1164,26 +1214,6 @@ export default function NelayanPage() {
                 </span>
               </div>
 
-              <div className="space-y-3 rounded-2xl bg-surface p-5 border border-soft/40">
-                <p className="font-sub font-bold">Status Verifikasi & Keamanan</p>
-                {[
-                  ["Terdaftar oleh admin JalaLink", true],
-                  ["Diverifikasi standar cold-chain", true],
-                  ["Telegram bot terhubung", linked],
-                ].map(([l, ok]) => (
-                  <p key={String(l)} className="flex items-center gap-3 text-sm">
-                    <span
-                      className={`grid size-6 place-items-center rounded-full ${
-                        ok ? "bg-[#0E7C86] text-white" : "border border-soft text-soft"
-                      }`}
-                    >
-                      {ok ? <Check size={14} /> : null}
-                    </span>
-                    {l}
-                  </p>
-                ))}
-              </div>
-
               <button 
                 onClick={() => router.push("/login")}
                 className="h-12 w-full rounded-xl border border-soft bg-white font-sub font-semibold text-ink hover:bg-surface transition"
@@ -1195,15 +1225,15 @@ export default function NelayanPage() {
         </main>
       )}
 
-      {/* MODAL CAIRKAN SALDO */}
+      {/* MODAL CAIRKAN SALDO GROSS VS NET */}
       {modalCairkan && (
         <ModalCairkanSaldo 
-          saldoReady={saldoReady} 
+          grossIkanTotal={grossIkanSelesai} 
           onClose={() => setModalCairkan(false)} 
           onConfirm={() => {
             setModalCairkan(false);
-            setPesananList((prev) => prev.map((p) => ({ ...p, bisaDicairkan: false })));
-            flash("Permintaan pencairan berhasil dikirim ke bank tujuan!");
+            setPesananList((prev) => prev.map((p) => (p.status === "Selesai" ? { ...p, totalHargaIkan: 0 } : p)));
+            flash("Permintaan pencairan bersih berhasil ditransfer ke rekening bank tujuan!");
           }} 
         />
       )}
