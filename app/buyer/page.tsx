@@ -1,17 +1,27 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, FormEvent, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";
 import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed } from "lucide-react";
 import Image from "next/image";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import dynamic from "next/dynamic";
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+interface MapPickerProps {
+  lat: number;
+  lng: number;
+  onChange: (lat: number, lng: number) => void;
+}
 
-const mapContainerStyle = {
-  width: "100%",
-  height: "180px",
-  borderRadius: "16px",
-};
+const MapPicker = dynamic<MapPickerProps>(
+  () => import("@/components/MapPicker"),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="grid h-44 w-full place-items-center rounded-2xl bg-surface text-xs text-ink/60">
+        Memuat peta OpenStreetMap...
+      </div>
+    )
+  }
+);
 
 function Logo() {
   return (
@@ -349,7 +359,7 @@ function TopNav({ tab, go, cartCount, onCart, user, onEditAddress }: { tab: Tab;
           <button
             onClick={onEditAddress}
             className="flex items-center gap-1 rounded-full bg-brand px-3 py-1.5 font-sub text-xs font-semibold text-white transition hover:bg-brand/90"
-            title="Klik untuk ubah alamat & titik lokasi GMaps"
+            title="Klik untuk ubah alamat & titik lokasi"
           >
             <MapPin size={14} />
             <span className="max-w-[120px] truncate sm:max-w-none">{user.kotaKecamatan || "Jatinangor, Sumedang"}</span>
@@ -494,7 +504,7 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-heading text-lg font-bold text-ink">{q ? <>Hasil untuk “{q}”</> : "Ikan Segar Hari Ini"}</h2>
+          <h2 className="font-heading text-lg font-bold text-ink">{q ? <>Hasil untuk "{q}"</> : "Ikan Segar Hari Ini"}</h2>
           <span className="font-sub text-sm font-semibold text-brand">{list.length} ikan</span>
         </div>
         <div className="mb-3 flex gap-2">
@@ -855,7 +865,7 @@ function CartSheet({ open, onClose, cartItems, listings, userAddress, onQtyChang
                 </div>
                 {Object.entries(groupedByFisher).map(([nelayan, data]) => (
                   <div key={nelayan} className="flex justify-between text-xs text-ink/60">
-                    <span>↳ {nelayan} ({data.totalQty} kg)</span>
+                    <span>- {nelayan} ({data.totalQty} kg)</span>
                     <span>{rp(calculateTotalOngkir(data.ongkirFlat, data.totalQty))}</span>
                   </div>
                 ))}
@@ -963,7 +973,7 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
                   onClick={() => toggleExpand(o.no)} 
                   className="mt-1.5 flex items-center gap-1 text-xs font-bold text-brand hover:underline"
                 >
-                  {isExpanded ? "Sembunyikan Rincian ▲" : "Lihat Rincian Pesanan ▼"}
+                  {isExpanded ? "Sembunyikan Rincian ^" : "Lihat Rincian Pesanan v"}
                 </button>
               </div>
 
@@ -1242,7 +1252,7 @@ function AkunView({ user, favs, ordersCount, onOpen, onOpenFisher, onEditProfile
             <span className="font-bold text-ink block truncate">{user.jalanNo}</span>
             <span className="text-xs text-ink/70 block truncate">RT {user.rt} / RW {user.rw} · {user.kotaKecamatan}</span>
             {user.patokan && <span className="text-[11px] text-brand font-semibold block truncate">Patokan: {user.patokan}</span>}
-            <span className="text-[10px] text-ink/50 block font-mono">GMaps Pin: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
+            <span className="text-[10px] text-ink/50 block font-mono">Pin Lokasi: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
           </div>
         </div>
         <button onClick={onEditAddress} className="font-sub text-xs font-bold text-brand hover:underline shrink-0">
@@ -1339,34 +1349,6 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
   const [lng, setLng] = useState(user.lng);
   const [isLocating, setIsLocating] = useState(false);
 
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? GOOGLE_MAPS_API_KEY : "",
-  });
-
-  const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-      setLat(Number(e.latLng.lat().toFixed(4)));
-      setLng(Number(e.latLng.lng().toFixed(4)));
-    }
-  }, []);
-
-  const onMarkerDragEnd = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-      setLat(Number(e.latLng.lat().toFixed(4)));
-      setLng(Number(e.latLng.lng().toFixed(4)));
-    }
-  }, []);
-
-  const handleSimulatedClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const newLat = Number((-6.93 + (y / rect.height) * 0.02).toFixed(4));
-    const newLng = Number((107.77 + (x / rect.width) * 0.02).toFixed(4));
-    setLat(newLat);
-    setLng(newLng);
-  };
-
   const handleCurrentLocation = () => {
     setIsLocating(true);
     if (navigator.geolocation) {
@@ -1417,35 +1399,16 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
           </div>
 
           <div className="relative overflow-hidden rounded-2xl border border-soft/80 shadow-inner">
-            {isLoaded && GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? (
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={{ lat, lng }}
-                zoom={15}
-                onClick={onMapClick}
-                options={{ disableDefaultUI: true, zoomControl: true }}
-              >
-                <Marker position={{ lat, lng }} draggable={true} onDragEnd={onMarkerDragEnd} />
-              </GoogleMap>
-            ) : (
-              <div 
-                onClick={handleSimulatedClick}
-                className="relative h-44 w-full bg-[#e5e3df] cursor-pointer group"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(#0B6E99_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
-                <div className="absolute inset-x-0 top-1/2 h-10 bg-white/60 -translate-y-1/2 -rotate-6 pointer-events-none" />
-                <div className="absolute inset-y-0 left-1/2 w-10 bg-white/60 -translate-x-1/2 rotate-12 pointer-events-none" />
+            <MapPicker 
+              lat={lat} 
+              lng={lng} 
+              onChange={(newLat, newLng) => {
+                setLat(newLat);
+                setLng(newLng);
+              }} 
+            />
 
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none transition-transform duration-200 group-hover:scale-110">
-                  <div className="rounded-md bg-ink text-white px-2 py-0.5 text-[10px] font-bold shadow-md whitespace-nowrap mb-1">
-                    Klik peta untuk pas-kan titik
-                  </div>
-                  <MapPin size={32} className="text-brand fill-brand/20 drop-shadow-md" />
-                </div>
-              </div>
-            )}
-
-            <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2 py-1 text-[10px] font-mono font-bold text-ink shadow-sm z-10">
+            <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2 py-1 text-[10px] font-mono font-bold text-ink shadow-sm z-10 pointer-events-none">
               Lat: {lat}, Lng: {lng}
             </span>
           </div>

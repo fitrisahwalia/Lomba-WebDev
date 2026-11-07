@@ -1,16 +1,27 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { MapPin, Package, MessageCircle, CheckCircle, Check, ChevronDown, LogOut, User, Search, Map, Info, AlertTriangle, X, Navigation, Calendar, Star, Bike, History, LocateFixed } from "lucide-react";
 import Image from "next/image";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import dynamic from "next/dynamic";
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+interface MapPickerProps {
+  lat: number;
+  lng: number;
+  onChange: (lat: number, lng: number) => void;
+}
 
-const mapContainerStyle = {
-  width: "100%",
-  height: "288px",
-};
+const MapPicker = dynamic<MapPickerProps>(
+  () => import("@/components/MapPicker"),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="grid h-72 w-full place-items-center rounded-2xl bg-slate-100 text-xs font-semibold text-slate-500">
+        Memuat peta OpenStreetMap...
+      </div>
+    )
+  }
+);
 
 function Logo() {
   return (
@@ -67,23 +78,15 @@ export default function KurirDashboard() {
   const [search, setSearch] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
-  // States untuk Notifikasi & Konfirmasi
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ type: "ambil" | "selesai"; paketId: string } | null>(null);
   
-  // States untuk Lapor Kendala
   const [issueModal, setIssueModal] = useState<string | null>(null);
   const [showCustomIssue, setShowCustomIssue] = useState(false);
   const [customIssueText, setCustomIssueText] = useState("");
 
-  // States untuk Modals Info & Maps
   const [mapModal, setMapModal] = useState<Paket | null>(null);
   const [infoAkunModal, setInfoAkunModal] = useState(false);
-
-  // Google Maps SDK Loader
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? GOOGLE_MAPS_API_KEY : "",
-  });
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -180,7 +183,6 @@ export default function KurirDashboard() {
           </div>
         </div>
         
-        {/* Main Navigation Tabs */}
         <div className="bg-white border-b border-slate-200 px-4 sm:px-6">
           <div className="mx-auto max-w-7xl flex gap-6">
             <button 
@@ -200,8 +202,6 @@ export default function KurirDashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 pb-20">
-        
-        {/* HALAMAN BERANDA (Tugas Hari Ini) */}
         {mainTab === "beranda" && (
           <div className="animate-in fade-in duration-300">
             <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -355,7 +355,6 @@ export default function KurirDashboard() {
           </div>
         )}
 
-        {/* HALAMAN RIWAYAT PENGIRIMAN */}
         {mainTab === "riwayat" && (
           <div className="animate-in fade-in duration-300 max-w-4xl mx-auto">
             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -462,7 +461,7 @@ export default function KurirDashboard() {
         </div>
       )}
 
-      {/* Modal Cek Titik Lokasi ( Google Maps API React Component Integration ) */}
+      {/* Modal Cek Titik Lokasi (Leaflet MapPicker) */}
       {mapModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
@@ -479,27 +478,18 @@ export default function KurirDashboard() {
               </button>
             </div>
             
-            <div className="w-full h-72 bg-slate-100 relative">
-              {isLoaded && GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? (
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={{ lat: mapModal.lat, lng: mapModal.lng }}
-                  zoom={16}
-                  options={{ disableDefaultUI: false, zoomControl: true }}
-                >
-                  <Marker position={{ lat: mapModal.lat, lng: mapModal.lng }} title={mapModal.pembeli} />
-                </GoogleMap>
-              ) : (
-                <iframe
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  allowFullScreen
-                  src={`https://maps.google.com/maps?q=${mapModal.lat},${mapModal.lng}&z=16&output=embed`}
-                ></iframe>
-              )}
-              <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-mono font-bold text-ink shadow-sm z-10">
+            <div className="w-full relative overflow-hidden">
+              <MapPicker 
+                lat={mapModal.lat} 
+                lng={mapModal.lng} 
+                onChange={(newLat, newLng) => {
+                  setPaketList((prev) => 
+                    prev.map((p) => p.id === mapModal.id ? { ...p, lat: newLat, lng: newLng } : p)
+                  );
+                  setMapModal((prev) => prev ? { ...prev, lat: newLat, lng: newLng } : null);
+                }} 
+              />
+              <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-mono font-bold text-ink shadow-sm z-10 pointer-events-none">
                 Pin: {mapModal.lat.toFixed(4)}, {mapModal.lng.toFixed(4)}
               </span>
             </div>
