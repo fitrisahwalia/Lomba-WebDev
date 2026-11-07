@@ -789,11 +789,12 @@ export default function NelayanPage() {
 
   return (
     <div className="min-h-screen bg-white font-body text-ink pb-24 md:pb-10">
-      {/* HEADER HP */}
+      {/* HEADER ATAS DENGAN LOGO IKAN BARU */}
       <header className="sticky top-0 z-30 border-b border-soft/30 bg-white px-4 py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <button onClick={() => go("home")} aria-label="Beranda">
-            <Image src="/logo.png" alt="JalaLink" width={100} height={32} className="object-contain" priority />
+          <button onClick={() => go("home")} aria-label="Beranda" className="flex items-center gap-2">
+            <Image src="/logo-icon.png" alt="JalaLink" width={36} height={36} className="object-contain" priority />
+            <span className="font-heading font-bold text-lg text-[#0E7C86]">JalaLink</span>
           </button>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-[#0E7C86] px-2.5 py-0.5 font-sub text-[11px] font-bold text-white">
@@ -868,7 +869,7 @@ export default function NelayanPage() {
                 ))}
               </div>
 
-              {/* DAFAR PESANAN MASUK (KARTU HP & TABEL DESKTOP) */}
+              {/* DAFAR PESANAN MASUK */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-1.5 font-heading text-base font-bold">
@@ -1153,7 +1154,7 @@ export default function NelayanPage() {
         <ModalUlasanIkan ikan={selectedIkanReview} onClose={() => setSelectedIkanReview(null)} />
       )}
 
-      {/* NAVBAR MOBILE BOTTOM (PEMULIHAN TAB BAWAH DENGAN BADGE BADGE UNREAD CHAT) */}
+      {/* NAVBAR MOBILE BOTTOM FIXED */}
       {!(tab === "chat" && active !== null) && (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-soft/30 bg-white px-2 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <ul className="grid grid-cols-5">
