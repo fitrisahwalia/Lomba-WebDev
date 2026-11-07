@@ -126,10 +126,22 @@ function TelegramView({
     return () => clearInterval(t);
   }, [code]);
 
-  const gen = () => {
-    setCode(String(Math.floor(100000 + Math.random() * 900000)));
-    setLeft(600);
-  };
+  const gen = async () => {
+  try {
+    const res = await fetch("/api/nelayan/generate-code", { method: "POST" });
+    const data = await res.json();
+
+    if (data.kode) {
+      setCode(data.kode);
+      setLeft(600); // 10 menit
+      flash("Kode tautan berhasil dibuat!");
+    } else {
+      flash(data.error || "Gagal membuat kode tautan.");
+    }
+  } catch (err) {
+    flash("Terjadi kesalahan koneksi.");
+  }
+};
   const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 
   if (linked)
@@ -650,6 +662,30 @@ export default function NelayanPage() {
   const [log, setLog] = useState<Log[]>([]);
   const [simN, setSimN] = useState(0);
   const [toast, setToast] = useState("");
+  useEffect(() => {
+    async function fetchStokReal() {
+      try {
+        const res = await fetch("/api/listing");
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const listIkan = data.map((item: any) => ({
+            id: item.id,
+            nama: item.ikan?.nama_baku || "Ikan Tangkapan",
+            harga: item.harga_per_kg,
+            stok: item.stok_kg,
+            habis: item.status === "habis",
+            sumber: "Telegram",
+            waktu: item.tanggal_tangkap || now(),
+          }));
+          setIkan(listIkan);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data dari Supabase:", err);
+      }
+    }
+    fetchStokReal();
+  }, []);
+  // -------------------------------------------------------------------
   const flash = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(""), 3000);
