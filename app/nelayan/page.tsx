@@ -663,29 +663,28 @@ export default function NelayanPage() {
   const [simN, setSimN] = useState(0);
   const [toast, setToast] = useState("");
   useEffect(() => {
-    async function fetchStokReal() {
-      try {
-        const res = await fetch("/api/listing");
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const listIkan = data.map((item: any) => ({
-            id: item.id,
-            nama: item.ikan?.nama_baku || "Ikan Tangkapan",
-            harga: item.harga_per_kg,
-            stok: item.stok_kg,
-            habis: item.status === "habis",
-            sumber: "Telegram",
-            waktu: item.tanggal_tangkap || now(),
-          }));
-          setIkan(listIkan);
-        }
-      } catch (err) {
-        console.error("Gagal mengambil data dari Supabase:", err);
+  async function fetchStokReal() {
+    try {
+      const res = await fetch("/api/listing");
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const listIkan = data.map((item: any) => ({
+          id: item.id,
+          nama: item.ikan?.nama_baku || "Ikan Tangkapan",
+          harga: item.harga_per_kg,
+          stok: item.stok_kg,
+          habis: item.status === "habis",
+          sumber: "Telegram" as const, // <-- TAMBAHKAN 'as const' DI SINI
+          waktu: item.tanggal_tangkap || now(),
+        }));
+        setIkan(listIkan);
       }
+    } catch (err) {
+      console.error("Gagal mengambil data dari Supabase:", err);
     }
-    fetchStokReal();
-  }, []);
-  // -------------------------------------------------------------------
+  }
+  fetchStokReal();
+}, []);
   const flash = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(""), 3000);
