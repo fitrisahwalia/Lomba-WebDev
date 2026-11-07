@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";
-import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed } from "lucide-react";
+import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed, Ticket, CheckCircle2, Clock } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
@@ -170,6 +170,15 @@ type FAQItem = {
   kategori: string;
   pertanyaan: string;
   jawaban: string;
+};
+
+type HelpTicket = {
+  id: string;
+  topik: string;
+  subjek: string;
+  status: "Sedang Diproses" | "Selesai";
+  tanggal: string;
+  messages: Msg[];
 };
 
 const FAQ_LIST: FAQItem[] = [
@@ -1046,13 +1055,14 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
   );
 }
 
-const QUICK = ["Masih ada stok?", "Bisa kirim besok?", "Hasil tangkapan hari ini?"];
+const QUICK_NELAYAN = ["Masih ada stok?", "Bisa kirim besok?", "Hasil tangkapan hari ini?"];
+const QUICK_ADMIN = ["Bagaimana status kendala saya?", "Bisa bantu lacak posisi pengiriman?", "Saya ingin mengajukan komplain pesanan"];
 const initial = (n: string) => n.split(" ")[1]?.[0] || (n ? n[0] : "N");
 
 function ChatList({ fishers, msgs, onOpen }: { fishers: { nama: string; daerah: string }[]; msgs: Record<string, Msg[]>; onOpen: (n: string) => void }) {
   return (
     <div className="mx-auto max-w-3xl space-y-3 px-4 py-5 pb-28 md:pb-10">
-      <h1 className="font-heading text-2xl font-bold text-ink">Chat</h1>
+      <h1 className="font-heading text-2xl font-bold text-ink">Chat Nelayan</h1>
       <p className="text-sm text-ink/60">Maksimal 20 pesan per hari per nelayan. Kontak pribadi nelayan tidak ditampilkan.</p>
       
       {fishers.map((f) => {
@@ -1068,42 +1078,54 @@ function ChatList({ fishers, msgs, onOpen }: { fishers: { nama: string; daerah: 
   );
 }
 
-function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport }: { nama: string; daerah: string; msgs: Msg[]; used: number; onSend: (t: string) => void; onBack: () => void; onReport: (reason: string) => void }) {
+function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport, isAdmin = false }: { nama: string; daerah: string; msgs: Msg[]; used: number; onSend: (t: string) => void; onBack: () => void; onReport?: (reason: string) => void; isAdmin?: boolean }) {
   const [t, setT] = useState("");
   const [isReportOpen, setIsReportOpen] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length]);
-  const full = used >= 20;
+  const full = !isAdmin && used >= 20;
   const send = (x: string) => { if (!x.trim() || full) return; onSend(x.trim()); setT(""); };
+  const quickList = isAdmin ? QUICK_ADMIN : QUICK_NELAYAN;
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-3xl flex-col relative">
       <div className="flex items-center gap-3 border-b border-soft/30 px-4 py-3 bg-white z-10">
         <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
         <span className="grid size-10 place-items-center rounded-full bg-brand font-sub font-bold text-white">{initial(nama)}</span>
-        <div className="flex-1"><p className="font-sub font-bold text-ink">{nama}</p><p className="text-xs text-ink/60">{daerah} · {used}/20 pesan hari ini</p></div>
+        <div className="flex-1">
+          <p className="font-sub font-bold text-ink">{nama}</p>
+          <p className="text-xs text-ink/60">{isAdmin ? "Customer Service Platform" : `${daerah} · ${used}/20 pesan hari ini`}</p>
+        </div>
         
-        <button 
-          onClick={() => setIsReportOpen(true)} 
-          className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 font-sub text-xs font-semibold text-brand bg-brand/10 border border-brand/20 hover:bg-brand/20 transition"
-        >
-          <Flag size={14} className="text-brand" /> Lapor
-        </button>
+        {!isAdmin && onReport && (
+          <button 
+            onClick={() => setIsReportOpen(true)} 
+            className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 font-sub text-xs font-semibold text-brand bg-brand/10 border border-brand/20 hover:bg-brand/20 transition"
+          >
+            <Flag size={14} className="text-brand" /> Lapor
+          </button>
+        )}
       </div>
       
-      <div className="mx-4 mt-3 rounded-2xl bg-brand/5 border border-brand/20 p-3.5 text-xs text-ink flex items-start gap-3 shadow-sm">
-        <ShieldAlert size={18} className="text-brand shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
-          <span className="font-bold block text-brand">Peringatan Keamanan Platform</span>
-          <p className="leading-relaxed text-ink/80">
-            Selalu bertransaksi melalui aplikasi JalaLink. Transaksi di luar sistem (COD/Transfer Pribadi) tidak dijamin oleh standar kualitas cold-chain & garansi platform.
-          </p>
+      {!isAdmin && (
+        <div className="mx-4 mt-3 rounded-2xl bg-brand/5 border border-brand/20 p-3.5 text-xs text-ink flex items-start gap-3 shadow-sm">
+          <ShieldAlert size={18} className="text-brand shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold block text-brand">Peringatan Keamanan Platform</span>
+            <p className="leading-relaxed text-ink/80">
+              Selalu bertransaksi melalui aplikasi JalaLink. Transaksi di luar sistem (COD/Transfer Pribadi) tidak dijamin oleh standar kualitas cold-chain & garansi platform.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 space-y-3 overflow-y-auto bg-surface/60 p-4">
-        {msgs.length === 0 && <p className="py-10 text-center text-sm text-ink/60">Tanyakan stok atau jadwal kirim lewat pesan cepat di bawah.</p>}
+        {msgs.length === 0 && (
+          <p className="py-10 text-center text-sm text-ink/60">
+            {isAdmin ? "Silakan sampaikan pertanyaan atau kendala transaksi Anda kepada Admin CS JalaLink." : "Tanyakan stok atau jadwal kirim lewat pesan cepat di bawah."}
+          </p>
+        )}
         {msgs.map((m, i) => (
           <div key={i} className={`flex flex-col ${m.me ? "items-end" : "items-start"}`}>
             <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${m.me ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm bg-white text-ink"}`}>
@@ -1119,14 +1141,18 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport }: { nama
       </div>
 
       <div className="space-y-2 border-t border-soft/30 bg-white p-3 z-10">
-        <div className="flex gap-2 overflow-x-auto">{QUICK.map((c) => <button key={c} disabled={full} onClick={() => send(c)} className="shrink-0 rounded-full border border-brand bg-white px-3 py-1.5 font-sub text-xs font-semibold text-brand hover:bg-surface disabled:opacity-40">{c}</button>)}</div>
+        <div className="flex gap-2 overflow-x-auto">
+          {quickList.map((c) => (
+            <button key={c} disabled={full} onClick={() => send(c)} className="shrink-0 rounded-full border border-brand bg-white px-3 py-1.5 font-sub text-xs font-semibold text-brand hover:bg-surface disabled:opacity-40">{c}</button>
+          ))}
+        </div>
         <div className="flex gap-2">
           <Input value={t} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setT(e.target.value)} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && send(t)} disabled={full} placeholder={full ? "Batas 20 pesan hari ini tercapai" : "Tulis pesan..."} className="h-11 rounded-xl border-soft text-ink placeholder:text-soft" />
           <Button onClick={() => send(t)} disabled={full} className="size-11 rounded-xl bg-brand text-white hover:bg-brand/90" aria-label="Kirim"><Send size={18} /></Button>
         </div>
       </div>
 
-      {isReportOpen && (
+      {isReportOpen && onReport && (
         <ReportSheet 
           fisherName={nama} 
           onClose={() => setIsReportOpen(false)} 
@@ -1139,9 +1165,20 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport }: { nama
   );
 }
 
-function HelpCenterView({ onBack, onChatAdmin }: { onBack: () => void; onChatAdmin: () => void }) {
+function HelpCenterView({ 
+  onBack, 
+  tickets, 
+  onCreateTicket,
+  onOpenTicketChat
+}: { 
+  onBack: () => void; 
+  tickets: HelpTicket[];
+  onCreateTicket: (topik: string, subjek: string, pesan: string) => void;
+  onOpenTicketChat: (ticketId: string) => void;
+}) {
   const [searchFaq, setSearchFaq] = useState("");
   const [openFaqId, setOpenFaqId] = useState<number | null>(null);
+  const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
 
   const filteredFaqs = useMemo(() => {
     if (!searchFaq.trim()) return FAQ_LIST;
@@ -1154,9 +1191,58 @@ function HelpCenterView({ onBack, onChatAdmin }: { onBack: () => void; onChatAdm
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
         <div>
-          <h1 className="font-heading text-2xl font-bold text-ink">Pusat Bantuan</h1>
-          <p className="text-xs text-ink/60">Temukan jawaban atau hubungi tim dukungan JalaLink</p>
+          <h1 className="font-heading text-2xl font-bold text-ink">Pusat Bantuan & Tiket CS</h1>
+          <p className="text-xs text-ink/60">Temukan jawaban FAQ atau kelola tiket bantuan transaksi Anda</p>
         </div>
+      </div>
+
+      {/* SECTION TIKET AKTIF USER */}
+      <div className="rounded-3xl bg-surface border border-soft/40 p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading text-lg font-bold text-ink flex items-center gap-2">
+            <Ticket size={20} className="text-brand" /> Tiket Bantuan Saya ({tickets.length})
+          </h2>
+          <Button 
+            onClick={() => setIsNewTicketOpen(true)}
+            className="rounded-full bg-brand px-4 py-1.5 font-sub text-xs font-semibold text-white hover:bg-brand/90 transition shadow-sm"
+          >
+            + Buat Tiket Baru
+          </Button>
+        </div>
+
+        {tickets.length > 0 ? (
+          <div className="space-y-2.5">
+            {tickets.map((t) => (
+              <div key={t.id} className="flex items-center justify-between rounded-2xl bg-white p-3.5 border border-soft/50 shadow-sm">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-md">{t.id}</span>
+                    <span className="text-xs font-semibold text-ink/50">{t.tanggal}</span>
+                  </div>
+                  <p className="font-sub text-sm font-bold text-ink">{t.subjek}</p>
+                  <p className="text-xs text-ink/60">Topik: {t.topik}</p>
+                </div>
+
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                    t.status === "Selesai" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"
+                  }`}>
+                    {t.status === "Selesai" ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                    {t.status}
+                  </span>
+                  <Button 
+                    onClick={() => onOpenTicketChat(t.id)}
+                    className="h-8 rounded-xl border border-brand bg-white px-3 font-sub text-xs font-bold text-brand hover:bg-surface"
+                  >
+                    Buka Chat CS
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-ink/60 py-2 italic text-center">Belum ada tiket kendala aktif. Klik "+ Buat Tiket Baru" jika butuh bantuan khusus Admin.</p>
+        )}
       </div>
 
       <div className="relative">
@@ -1208,18 +1294,92 @@ function HelpCenterView({ onBack, onChatAdmin }: { onBack: () => void; onChatAdm
         )}
       </div>
 
-      <div className="rounded-3xl bg-brand/10 border border-brand/20 p-5 space-y-3 text-center md:text-left md:flex md:items-center md:justify-between">
-        <div className="space-y-1">
-          <h3 className="font-heading text-lg font-bold text-ink">Tidak menemukan jawaban?</h3>
-          <p className="text-xs text-ink/70">Tim Customer Support JalaLink siap membantu kendala transaksi Anda.</p>
+      {isNewTicketOpen && (
+        <CreateTicketSheet 
+          onClose={() => setIsNewTicketOpen(false)}
+          onSubmit={(topik, subjek, pesan) => {
+            onCreateTicket(topik, subjek, pesan);
+            setIsNewTicketOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateTicketSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit: (topik: string, subjek: string, pesan: string) => void }) {
+  const [topik, setTopik] = useState("Kendala Pesanan & Ikan");
+  const [subjek, setSubjek] = useState("");
+  const [pesan, setPesan] = useState("");
+
+  const topiks = [
+    "Kendala Pesanan & Ikan",
+    "Pengiriman & Kurir",
+    "Pembayaran & QRIS",
+    "Akun & Keamanan"
+  ];
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!subjek.trim() || !pesan.trim()) return;
+    onSubmit(topik, subjek.trim(), pesan.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
+      <form role="dialog" aria-modal="true" onSubmit={handleSubmit} onClick={(e: React.MouseEvent<HTMLFormElement>) => e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading text-xl font-bold text-ink">Buat Tiket Bantuan CS</h2>
+          <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft text-ink" aria-label="Tutup"><X size={18} /></button>
         </div>
-        <Button 
-          onClick={onChatAdmin} 
-          className="h-11 rounded-full bg-brand px-6 font-sub text-sm font-semibold text-white hover:bg-brand/90 transition shadow-sm gap-2 w-full md:w-auto"
-        >
-          <MessageCircle size={16} /> Hubungi Admin
+
+        <div className="space-y-3 text-xs font-semibold text-ink">
+          <div>
+            <label className="block mb-1">Topik Masalah</label>
+            <div className="grid grid-cols-2 gap-2">
+              {topiks.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTopik(t)}
+                  className={`rounded-xl border p-2.5 text-left font-sub text-xs font-bold transition ${
+                    topik === t ? "border-brand bg-brand/10 text-brand" : "border-soft/60 bg-white text-ink hover:bg-surface"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-1">Judul Ringkas / Nomor Pesanan</label>
+            <Input 
+              value={subjek} 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubjek(e.target.value)} 
+              required 
+              placeholder="Contoh: Pesanan JL-1002 Belum Tiba" 
+              className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1">Penjelasan Kendala</label>
+            <textarea 
+              value={pesan} 
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPesan(e.target.value)} 
+              required
+              rows={4} 
+              placeholder="Jelaskan detail pertanyaan atau masalah yang dihadapi..." 
+              className="w-full rounded-xl border border-soft p-3 text-sm text-ink placeholder:text-soft outline-none focus:border-brand" 
+            />
+          </div>
+        </div>
+
+        <Button type="submit" className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90 shadow-sm">
+          Kirim Tiket & Buka Chat
         </Button>
-      </div>
+      </form>
     </div>
   );
 }
@@ -1254,7 +1414,7 @@ function AkunView({ user, favs, ordersCount, onOpen, onOpenFisher, onEditProfile
           <div className="min-w-0 flex-1 space-y-0.5">
             <b className="block font-sub text-xs text-ink/60">Alamat Pengiriman Utama</b>
             <span className="font-bold text-ink block truncate">{user.jalanNo}</span>
-            <span className="text-xs text-ink/70 block truncate">RT {user.rt} / RW {user.rw} · {user.kotaKecamatan}</span>
+            <span className="text-xs text-ink/70 block truncate">{user.kotaKecamatan}</span>
             {user.patokan && <span className="text-[11px] text-brand font-semibold block truncate">Patokan: {user.patokan}</span>}
             <span className="text-[10px] text-ink/50 block font-mono">Pin Lokasi: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
           </div>
@@ -1273,7 +1433,7 @@ function AkunView({ user, favs, ordersCount, onOpen, onOpenFisher, onEditProfile
         )}
       </section>
 
-      <button onClick={onHelp} className={row}><LifeBuoy size={20} className="text-brand" />Bantuan & FAQ</button>
+      <button onClick={onHelp} className={row}><LifeBuoy size={20} className="text-brand" />Pusat Bantuan & Tiket CS</button>
       <button className={row}><LogOut size={20} className="text-brand" />Keluar</button>
     </div>
   );
@@ -1352,7 +1512,6 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
   const [isLocating, setIsLocating] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
 
-  // Fitur Deteksi Lokasi GPS HP/Browser saat ini
   const handleCurrentLocation = () => {
     setIsLocating(true);
     if (navigator.geolocation) {
@@ -1371,7 +1530,7 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               setAlamatPeta(data.display_name);
             }
           } catch {
-            // abaikan error fetch
+            // abaikan error
           } finally {
             setLoadingAddress(false);
             setIsLocating(false);
@@ -1388,7 +1547,6 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    // Simpan data gabungan ke userProfile
     onSave({ 
       jalanNo: alamatPeta, 
       rt: "", 
@@ -1409,7 +1567,6 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
           <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft text-ink" aria-label="Tutup"><X size={18} /></button>
         </div>
 
-        {/* SECTION PETA */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="block text-xs font-bold text-ink">Klik Titik Pin di Peta (Auto-Fill Alamat)</label>
@@ -1446,7 +1603,6 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
           {loadingAddress && <p className="text-[11px] text-brand font-semibold animate-pulse">Mengambil alamat lengkap dari peta...</p>}
         </div>
 
-        {/* SECTION FORM BARU YANG RINGKAS */}
         <div className="space-y-3 text-xs font-semibold text-ink border-t border-soft/40 pt-3">
           <div>
             <label className="block mb-1 text-ink/70">Alamat Utama dari Peta (Otomatis)</label>
@@ -1666,8 +1822,8 @@ export default function Page() {
     email: "ushi@email.com",
     phone: "+62 812-3456-7890",
     jalanNo: "Jl. Melati No. 12",
-    rt: "02",
-    rw: "05",
+    rt: "",
+    rw: "",
     kotaKecamatan: "Jatinangor, Sumedang",
     patokan: "Pagar hitam depan warung kelontong",
     lat: -6.9312,
@@ -1677,6 +1833,23 @@ export default function Page() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isEditAddressOpen, setIsEditAddressOpen] = useState(false);
   const [isHelpCenterOpen, setIsHelpCenterOpen] = useState(false);
+
+  // TIKET BANTUAN FAQ
+  const [helpTickets, setHelpTickets] = useState<HelpTicket[]>([
+    {
+      id: "#TCK-8821",
+      topik: "Kendala Pesanan & Ikan",
+      subjek: "Pesanan JL-1002 Belum Tiba",
+      status: "Sedang Diproses",
+      tanggal: "Hari ini",
+      messages: [
+        { me: true, text: "Halo admin, pesanan JL-1002 statusnya sedang diantar dari pagi tapi belum sampai." },
+        { me: false, text: "Halo Ushi! Tim CS kami sedang mengonfirmasi posisi kurir Ahmad di lapangan. Ikan Anda dipastikan tetap aman dalam cold box beres." }
+      ]
+    }
+  ]);
+
+  const [activeTicketChatId, setActiveTicketChatId] = useState<string | null>(null);
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -1700,13 +1873,15 @@ export default function Page() {
     setSelectedFisher(null); 
     setChatWith(null); 
     setIsHelpCenterOpen(false);
+    setActiveTicketChatId(null);
     window.scrollTo({ top: 0 }); 
   };
 
   const detail = listings.find((l) => l.id === openId);
 
-  const openChat = (nama: string) => { setChatWith(nama); setTab("chat"); setOpenId(null); setSelectedFisher(null); setIsHelpCenterOpen(false); window.scrollTo({ top: 0 }); };
+  const openChat = (nama: string) => { setChatWith(nama); setTab("chat"); setOpenId(null); setSelectedFisher(null); setIsHelpCenterOpen(false); setActiveTicketChatId(null); window.scrollTo({ top: 0 }); };
   const toggleFav = (id: number) => setFavs((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
+  
   const send = (text: string) => {
     if (!chatWith) return;
     const who = chatWith, t = text.toLowerCase();
@@ -1723,6 +1898,49 @@ export default function Page() {
     }
 
     setTimeout(() => setMsgs((m) => ({ ...m, [who]: [...(m[who] ?? []), { me: false, text: reply }] })), 900);
+  };
+
+  const sendTicketMsg = (text: string) => {
+    if (!activeTicketChatId) return;
+    setHelpTickets((prev) => prev.map((t) => {
+      if (t.id === activeTicketChatId) {
+        return {
+          ...t,
+          messages: [...t.messages, { me: true, text }]
+        };
+      }
+      return t;
+    }));
+
+    setTimeout(() => {
+      setHelpTickets((prev) => prev.map((t) => {
+        if (t.id === activeTicketChatId) {
+          return {
+            ...t,
+            messages: [...t.messages, { me: false, text: "Terima kasih atas rinciannya. Tim Admin sedang menindaklanjuti tiket ini." }]
+          };
+        }
+        return t;
+      }));
+    }, 1000);
+  };
+
+  const handleCreateTicket = (topik: string, subjek: string, pesan: string) => {
+    const newId = `#TCK-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newTicket: HelpTicket = {
+      id: newId,
+      topik,
+      subjek,
+      status: "Sedang Diproses",
+      tanggal: "Hari ini",
+      messages: [
+        { me: true, text: pesan },
+        { me: false, text: `Halo ${userProfile.nama}, tiket ${newId} berhasil dibuat. Tim CS JalaLink akan membalas segera.` }
+      ]
+    };
+    setHelpTickets((prev) => [newTicket, ...prev]);
+    setActiveTicketChatId(newId);
+    flash(`Tiket ${newId} berhasil dibuat`);
   };
   
   const addToCart = (qty: number, langsungBeli: boolean) => {
@@ -1786,6 +2004,8 @@ export default function Page() {
     go("pesanan"); 
     flash("Pesanan berhasil dibuat");
   };
+
+  const currentTicket = helpTickets.find((t) => t.id === activeTicketChatId);
 
   return (
     <div className="min-h-screen bg-white font-body text-ink">
@@ -1853,10 +2073,22 @@ export default function Page() {
         : <ChatList fishers={fishers} msgs={msgs} onOpen={openChat} />)}
 
       {tab === "akun" && (
-        isHelpCenterOpen ? (
+        activeTicketChatId && currentTicket ? (
+          <ChatRoom 
+            nama={`Admin JalaLink (${currentTicket.id})`}
+            daerah={currentTicket.topik}
+            msgs={currentTicket.messages}
+            used={0}
+            onSend={sendTicketMsg}
+            onBack={() => setActiveTicketChatId(null)}
+            isAdmin={true}
+          />
+        ) : isHelpCenterOpen ? (
           <HelpCenterView 
             onBack={() => setIsHelpCenterOpen(false)} 
-            onChatAdmin={() => openChat("Admin JalaLink")}
+            tickets={helpTickets}
+            onCreateTicket={handleCreateTicket}
+            onOpenTicketChat={(tId) => setActiveTicketChatId(tId)}
           />
         ) : (
           <AkunView 
@@ -1872,7 +2104,7 @@ export default function Page() {
         )
       )}
 
-      {!(tab === "home" && (detail || selectedFisher)) && !(tab === "chat" && chatWith) && <BottomNav tab={tab} go={go} />}
+      {!(tab === "home" && (detail || selectedFisher)) && !(tab === "chat" && chatWith) && !(tab === "akun" && activeTicketChatId) && <BottomNav tab={tab} go={go} />}
       
       {isEditProfileOpen && (
         <EditProfileSheet 
@@ -1926,7 +2158,7 @@ export default function Page() {
         onClose={() => setCartOpen(false)} 
         cartItems={cartItems} 
         listings={listings}
-        userAddress={`${userProfile.jalanNo}, RT ${userProfile.rt}/RW ${userProfile.rw}, ${userProfile.kotaKecamatan}`}
+        userAddress={`${userProfile.jalanNo}, ${userProfile.kotaKecamatan}`}
         onQtyChange={handleQtyChange}
         onToggleCheck={handleToggleCheck}
         onRemoveItem={handleRemoveItem}
