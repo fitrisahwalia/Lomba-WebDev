@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, Fish, Truck, Check, ChevronLeft, Eye, EyeOff, Upload, FileText, X, Clock, Send, Wallet, ShieldCheck, Camera, Users, PackageCheck, Snowflake, Info } from "lucide-react";
-import { readStore, writeStore } from "@/lib/store";
-import { NEL0, type Nel } from "@/lib/data";
+import { readStore, writeStore } from "../../lib/store";
+import { NEL0, type Nel } from "../../lib/data";
 
 type Peran = "pembeli" | "nelayan" | "transport";
 type F = { k: string; label: string; ph?: string; type?: "text" | "email" | "password" | "tel" | "number" | "select" | "area"; opts?: string[]; hint?: string };
 type D = { k: string; label: string; hint: string; req: boolean };
 type Step = { t: string; kind: "edu" | "form" | "docs" | "review"; fields?: F[]; docs?: D[] };
-const DEMO_ALIAS = true; // demo: role dibaca dari alias email. Set false di produksi.
+const DEMO_ALIAS = true; 
 const TAG: Record<Peran, string> = { pembeli: "+pembeli", nelayan: "+nelayan", transport: "+admintransport" };
 const aliasFor = (v: string, tag: string) => { const [local = "", dom] = v.trim().split("@"); return `${local.split("+")[0] || "emailkamu"}${tag}@${dom || "gmail.com"}`; };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
