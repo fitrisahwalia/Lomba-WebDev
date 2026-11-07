@@ -10,20 +10,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
 );
 
-bot.command("start", async (ctx) => {
-  await ctx.reply("Halo Pak/Bu Nelayan! Selamat datang di bot JalaLink. Ketik /tautkan <kode> untuk menghubungkan akun Anda, atau /jual untuk mulai berjualan.");
-});
-
-// Fitur Tautkan Akun: /tautkan <kode>[cite: 6]
-bot.command("tautkan", async (ctx) => {
+// Helper function untuk memproses penautan kode (dipakai di /start dan /tautkan)
+async function prosesTautkanKode(ctx: any, kode: string) {
   const chatId = ctx.chat?.id;
-  const kode = ctx.match;
 
   if (!kode) {
     await ctx.reply("Format salah. Gunakan perintah: /tautkan KODE_ANDA (Contoh: /tautkan 123456)");
     return;
   }
 
+  // 1. Cari nelayan berdasarkan kode tautan[cite: 6]
   const { data: nelayan, error } = await supabase
     .from("nelayan")
     .select("id, nama")
@@ -31,21 +27,52 @@ bot.command("tautkan", async (ctx) => {
     .single();
 
   if (error || !nelayan) {
-    await ctx.reply("❌ Kode tautan tidak valid atau sudah digunakan.");
+    await ctx.reply("❌ Kode tautan tidak valid, sudah kadaluwarsa, atau sudah digunakan.");
     return;
   }
 
+  // 2. Simpan telegram_chat_id, ubah terverifikasi = true, dan hapus kode_tautan agar tidak bisa dipakai ulang[cite: 6]
   await supabase
     .from("nelayan")
-    .update({ telegram_chat_id: chatId, terverifikasi: true })
+    .update({ telegram_chat_id: chatId, terverifikasi: true, kode_tautan: null })
     .eq("id", nelayan.id);
 
-  await ctx.reply(`✅ Berhasil! Akun Anda terhubung sebagai nelayan: *${nelayan.nama}*[cite: 6].`, { parse_mode: "Markdown" });
+  await ctx.reply(`✅ *Berhasil!* Akun Anda terhubung sebagai nelayan: *${nelayan.nama}*.\n\nKetik /jual untuk mulai memasukkan stok ikan Anda.`, { parse_mode: "Markdown" });
+}
+
+// 1. Perintah /start (Mendukung klik langsung tombol dari Web: ?start=181662)[cite: 4, 6]
+bot.command("start", async (ctx) => {
+  const kodeStart = ctx.match;
+  if (kodeStart) {
+    // Jika ada parameter kode dari URL web
+    await prosesTautkanKode(ctx, kodeStart);
+  } else {
+    // Jika pengguna membuka bot secara langsung
+    await ctx.reply("Halo Pak/Bu Nelayan! Selamat datang di bot JalaLink. Ketik /tautkan <kode> untuk menghubungkan akun Anda, atau /jual untuk mulai berjualan.");
+  }
 });
 
+// 2. Perintah /tautkan <kode> manual[cite: 6]
+bot.command("tautkan", async (ctx) => {
+  await prosesTautkanKode(ctx, ctx.match);
+});
+
+// 3. Perintah /jual (Hanya untuk nelayan terverifikasi)
 bot.command("jual", async (ctx) => {
   const chatId = ctx.chat?.id;
-  
+
+  // Cek apakah akun telegram ini sudah terhubung ke tabel nelayan
+  const { data: nelayan } = await supabase
+    .from("nelayan")
+    .select("id")
+    .eq("telegram_chat_id", chatId)
+    .single();
+
+  if (!nelayan) {
+    await ctx.reply("❌ Akun Telegram Anda belum terhubung. Silakan buat kode tautan di web dan ketik `/tautkan KODE_ANDA` terlebih dahulu.", { parse_mode: "Markdown" });
+    return;
+  }
+
   await supabase.from("bot_session").upsert({
     chat_id: chatId,
     step: "MENUNGGU_NAMA_IKAN",
