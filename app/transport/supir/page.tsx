@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Truck, MapPin, AlertTriangle, PackageCheck, ArrowRight, Search, X, Filter, Warehouse, Box, User, ChevronDown, LogOut, Info, CheckCircle2 } from "lucide-react";
+import { Truck, MapPin, AlertTriangle, PackageCheck, ArrowRight, Search, X, Filter, Warehouse, Box, User, ChevronDown, LogOut, Info, CheckCircle2, Calendar } from "lucide-react";
 import Image from "next/image";
 
 function Logo() {
@@ -70,6 +70,7 @@ export default function SupirAntarKota() {
   const [customIssueText, setCustomIssueText] = useState("");
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [infoAkunModal, setInfoAkunModal] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const [dialogConfirm, setDialogConfirm] = useState<{
@@ -160,7 +161,7 @@ export default function SupirAntarKota() {
                     <p className="text-sm font-bold text-ink">Budi Santoso</p>
                     <p className="text-xs font-medium text-slate-500">ID: SPR-4412</p>
                   </div>
-                  <button onClick={() => { setIsProfileOpen(false); showToast("Membuka Info Akun..."); }} className="flex w-full items-center gap-2 rounded-xl p-2.5 text-sm font-semibold text-slate-600 hover:bg-brand/5 hover:text-brand transition-colors">
+                  <button onClick={() => { setIsProfileOpen(false); setInfoAkunModal(true); }} className="flex w-full items-center gap-2 rounded-xl p-2.5 text-sm font-semibold text-slate-600 hover:bg-brand/5 hover:text-brand transition-colors">
                     <User size={16} /> Info Akun
                   </button>
                   <div className="my-1 h-px bg-slate-100" />
@@ -175,7 +176,6 @@ export default function SupirAntarKota() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-4 sm:space-y-5 px-3 sm:px-4 py-4 sm:py-5 pb-20">
-        {/* Banner Rute Responsif */}
         <section className="rounded-2xl sm:rounded-3xl bg-white shadow-sm border border-slate-200 p-4 sm:p-5">
           <p className="font-sub text-xs sm:text-sm font-semibold text-brand">{RUTE.hari} · {RUTE.kendaraan}</p>
           <h1 className="font-heading text-lg sm:text-2xl md:text-3xl font-bold text-ink mt-0.5 sm:mt-1">{RUTE.nama}</h1>
@@ -194,7 +194,6 @@ export default function SupirAntarKota() {
           </div>
         </section>
 
-        {/* Statistik Responsif */}
         <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4">
           {stat.map(({ l, v, Icon }) => (
             <div key={l} className="rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-sm p-3 sm:p-4">
@@ -209,7 +208,6 @@ export default function SupirAntarKota() {
           <div className="h-full bg-brand transition-all" style={{ width: `${Math.min(100, (kg / KAP) * 100)}%` }} />
         </div>
 
-        {/* Controls & Filter Section */}
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between pt-1">
           <div className="flex items-center gap-1.5">
             <button onClick={() => setTab("jemput")} className={`rounded-full border px-3 py-1.5 sm:px-4 sm:py-2 font-sub text-xs sm:text-sm font-bold transition-all ${tab === "jemput" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}>
@@ -366,6 +364,50 @@ export default function SupirAntarKota() {
           </div>
         )}
       </main>
+
+      {/* Modal Info Akun Supir */}
+      {infoAkunModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="bg-brand/10 p-6 flex flex-col items-center justify-center relative">
+              <button onClick={() => setInfoAkunModal(false)} className="absolute top-4 right-4 rounded-full p-2 bg-white/50 hover:bg-white text-slate-600 transition">
+                <X size={18} />
+              </button>
+              <div className="h-20 w-20 rounded-full bg-brand text-white flex items-center justify-center mb-3 shadow-md">
+                <User size={36} />
+              </div>
+              <h3 className="font-heading text-xl font-bold text-ink">Budi Santoso</h3>
+              <p className="text-sm font-bold text-brand mt-1">ID: SPR-4412</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 text-sm">
+                <Truck className="text-slate-400 shrink-0" size={20} />
+                <div>
+                  <p className="font-bold text-ink">Truk Pendingin Besar</p>
+                  <p className="text-slate-500 font-medium">Plat: B 9999 XX</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <MapPin className="text-slate-400 shrink-0" size={20} />
+                <div>
+                  <p className="font-bold text-ink">Rute Utama</p>
+                  <p className="text-slate-500 font-medium">Logistik Pesisir → Bandung</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="text-slate-400 shrink-0" size={20} />
+                <div>
+                  <p className="font-bold text-ink">Bergabung Sejak</p>
+                  <p className="text-slate-500 font-medium">15 Maret 2022</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100">
+              <button onClick={() => setInfoAkunModal(false)} className="w-full rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Konfirmasi Tindakan */}
       {dialogConfirm && (
