@@ -13,10 +13,14 @@ const customIcon = new L.Icon({
   iconAnchor: [12, 41],
 });
 
-interface MapPickerProps {
+export interface MapPickerProps {
   lat: number;
   lng: number;
-  onChange: (lat: number, lng: number) => void;
+  onChange: (
+    lat: number,
+    lng: number,
+    addressDetails?: { road?: string; city?: string; district?: string }
+  ) => void;
 }
 
 function LocationMarker({ lat, lng, onChange }: MapPickerProps) {
@@ -27,11 +31,25 @@ function LocationMarker({ lat, lng, onChange }: MapPickerProps) {
   }, [lat, lng]);
 
   useMapEvents({
-    click(e) {
+    async click(e) {
       const newLat = Number(e.latlng.lat.toFixed(4));
       const newLng = Number(e.latlng.lng.toFixed(4));
       setPosition([newLat, newLng]);
-      onChange(newLat, newLng);
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${newLat}&lon=${newLng}&format=json`
+        );
+        const data = await res.json();
+        const addr = data.address || {};
+        const road = addr.road || addr.suburb || addr.pedestrian || "";
+        const city = addr.city || addr.town || addr.regency || "";
+        const district = addr.district || addr.suburb || addr.village || "";
+
+        onChange(newLat, newLng, { road, city, district });
+      } catch {
+        onChange(newLat, newLng);
+      }
     },
   });
 
@@ -40,10 +58,10 @@ function LocationMarker({ lat, lng, onChange }: MapPickerProps) {
 
 export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
   return (
-    <div className="h-64 w-full overflow-hidden rounded-2xl border border-soft/40 shadow-inner">
+    <div className="h-48 w-full overflow-hidden rounded-2xl border border-soft/40 shadow-inner">
       <MapContainer
         center={[lat, lng]}
-        zoom={13}
+        zoom={14}
         scrollWheelZoom={true}
         className="h-full w-full z-0"
       >

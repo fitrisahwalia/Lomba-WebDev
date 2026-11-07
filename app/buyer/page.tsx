@@ -8,7 +8,11 @@ import dynamic from "next/dynamic";
 interface MapPickerProps {
   lat: number;
   lng: number;
-  onChange: (lat: number, lng: number) => void;
+  onChange: (
+    lat: number,
+    lng: number,
+    addressDetails?: { road?: string; city?: string; district?: string }
+  ) => void;
 }
 
 const MapPicker = dynamic<MapPickerProps>(
@@ -16,7 +20,7 @@ const MapPicker = dynamic<MapPickerProps>(
   { 
     ssr: false,
     loading: () => (
-      <div className="grid h-44 w-full place-items-center rounded-2xl bg-surface text-xs text-ink/60">
+      <div className="grid h-48 w-full place-items-center rounded-2xl bg-surface text-xs text-ink/60">
         Memuat peta OpenStreetMap...
       </div>
     )
@@ -1348,25 +1352,39 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
   const [lat, setLat] = useState(user.lat);
   const [lng, setLng] = useState(user.lng);
   const [isLocating, setIsLocating] = useState(false);
+  const [loadingAddress, setLoadingAddress] = useState(false);
 
   const handleCurrentLocation = () => {
     setIsLocating(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLat(Number(pos.coords.latitude.toFixed(4)));
-          setLng(Number(pos.coords.longitude.toFixed(4)));
-          setIsLocating(false);
+        async (pos) => {
+          const newLat = Number(pos.coords.latitude.toFixed(4));
+          const newLng = Number(pos.coords.longitude.toFixed(4));
+          setLat(newLat);
+          setLng(newLng);
+
+          try {
+            setLoadingAddress(true);
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${newLat}&lon=${newLng}&format=json`);
+            const data = await res.json();
+            const addr = data.address || {};
+            if (addr.road) setJalanNo(addr.road);
+            const kec = addr.district || addr.suburb || "";
+            const kota = addr.city || addr.town || addr.regency || "";
+            if (kec || kota) setKotaKecamatan(`${kec}${kec && kota ? ", " : ""}${kota}`);
+          } catch {
+            // abaikan error jika gagal fetch
+          } finally {
+            setLoadingAddress(false);
+            setIsLocating(false);
+          }
         },
         () => {
-          setLat(-6.9312);
-          setLng(107.7735);
           setIsLocating(false);
         }
       );
     } else {
-      setLat(-6.9312);
-      setLng(107.7735);
       setIsLocating(false);
     }
   };
@@ -1387,7 +1405,7 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold text-ink">Atur Titik Pin Lokasi (Geser/Klik Peta)</label>
+            <label className="block text-xs font-bold text-ink">Atur Titik Pin Lokasi (Klik Peta untuk Auto-Fill Teks Alamat)</label>
             <button 
               type="button" 
               onClick={handleCurrentLocation} 
@@ -1402,9 +1420,15 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
             <MapPicker 
               lat={lat} 
               lng={lng} 
-              onChange={(newLat, newLng) => {
+              onChange={(newLat, newLng, addressDetails) => {
                 setLat(newLat);
                 setLng(newLng);
+                if (addressDetails) {
+                  if (addressDetails.road) setJalanNo(addressDetails.road);
+                  const kec = addressDetails.district || "";
+                  const kota = addressDetails.city || "";
+                  if (kec || kota) setKotaKecamatan(`${kec}${kec && kota ? ", " : ""}${kota}`);
+                }
               }} 
             />
 
@@ -1412,7 +1436,8 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               Lat: {lat}, Lng: {lng}
             </span>
           </div>
-          <p className="text-[11px] text-ink/60">Pastikan titik di atas sesuai dengan patokan rumahmu agar kurir tidak tersesat.</p>
+          {loadingAddress && <p className="text-[11px] text-brand font-semibold animate-pulse">Mengambil nama jalan otomatis...</p>}
+          <p className="text-[11px] text-ink/60">Klik titik di peta untuk mengisi kolom nama jalan dan daerah secara otomatis.</p>
         </div>
 
         <div className="space-y-3 text-xs font-semibold text-ink border-t border-soft/40 pt-3">
@@ -1460,11 +1485,11 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               />
             </div>
             <div>
-              <label className="block mb-1">Patokan Kurir (Opsional)</label>
+              <label className="block mb-1">Patokan / Ciri Bangunan (Kurir)</label>
               <Input 
                 value={patokan} 
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPatokan(e.target.value)} 
-                placeholder="Pagar hitam warung" 
+                placeholder="Pagar hitam, cat tembok hijau" 
                 className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
               />
             </div>

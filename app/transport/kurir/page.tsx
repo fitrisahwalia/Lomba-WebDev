@@ -8,7 +8,11 @@ import dynamic from "next/dynamic";
 interface MapPickerProps {
   lat: number;
   lng: number;
-  onChange: (lat: number, lng: number) => void;
+  onChange: (
+    lat: number,
+    lng: number,
+    addressDetails?: { road?: string; city?: string; district?: string }
+  ) => void;
 }
 
 const MapPicker = dynamic<MapPickerProps>(
