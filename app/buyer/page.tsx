@@ -1,8 +1,17 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";
-import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, Navigation, LocateFixed } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState, FormEvent, useCallback } from "react";
+import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed } from "lucide-react";
 import Image from "next/image";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+
+const mapContainerStyle = {
+  width: "100%",
+  height: "180px",
+  borderRadius: "16px",
+};
 
 function Logo() {
   return (
@@ -13,12 +22,13 @@ function Logo() {
         width={110} 
         height={36} 
         className="object-contain"
+        priority
       />
     </div>
   );
 }
 
-function Button({ children, className = "", ...props }: any) {
+function Button({ children, className = "", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string }) {
   return (
     <button className={`inline-flex items-center justify-center font-sub font-semibold transition active:scale-95 disabled:pointer-events-none ${className}`} {...props}>
       {children}
@@ -26,13 +36,13 @@ function Button({ children, className = "", ...props }: any) {
   );
 }
 
-function Input({ className = "", ...props }: any) {
+function Input({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement> & { className?: string }) {
   return (
     <input className={`w-full outline-none transition ${className}`} {...props} />
   );
 }
 
-function Badge({ children, className = "", ...props }: any) {
+function Badge({ children, className = "", ...props }: React.HTMLAttributes<HTMLSpanElement> & { className?: string; variant?: string }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${className}`} {...props}>
       {children}
@@ -98,7 +108,8 @@ type ReviewItem = {
   rating: number;
   date: string;
   comment: string;
-  photoUrl?: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
 };
 
 type Listing = { 
@@ -130,7 +141,9 @@ type UserProfile = {
   nama: string;
   email: string;
   phone: string;
-  alamat: string;
+  jalanNo: string;
+  rt: string;
+  rw: string;
   kotaKecamatan: string;
   patokan: string;
   lat: number;
@@ -192,36 +205,12 @@ const FAQ_LIST: FAQItem[] = [
 
 const SPECIFIC_REVIEWS: Record<number, ReviewItem[]> = {
   1: [
-    { id: 101, user: "Budi S.", rating: 5, date: "Kemarin", comment: "Kakap merah Pak Wayan tebal dan manis, dibakar bumbu kecap mantap!", photoUrl: "/logo.png" },
+    { id: 101, user: "Budi S.", rating: 5, date: "Kemarin", comment: "Kakap merah Pak Wayan tebal dan manis, dibakar bumbu kecap mantap!", mediaUrl: "/logo.png", mediaType: "image" },
     { id: 102, user: "Siti A.", rating: 4, date: "3 hari lalu", comment: "Segar pas nyampe Jatinangor, esnya masih utuh." }
   ],
   2: [
     { id: 201, user: "Rina M.", rating: 5, date: "2 hari lalu", comment: "Tongkol Pak Darmo juara, gak amis sama sekali dibuat balado." },
     { id: 202, user: "Eko P.", rating: 4, date: "5 hari lalu", comment: "Ukuran sesuai, pengiriman subuh tepat waktu." }
-  ],
-  3: [
-    { id: 301, user: "Deni K.", rating: 5, date: "Kemarin", comment: "Dibuat cakalang fufu mantap pol, dagingnya padat." }
-  ],
-  4: [
-    { id: 401, user: "Andi H.", rating: 5, date: "4 hari lalu", comment: "Tuna kualitas premium! Potongannya rapi dan segar banget." }
-  ],
-  5: [
-    { id: 501, user: "Maya S.", rating: 5, date: "Hari ini", comment: "Ikan kembung Bu Sari matanya masih bening, digoreng garing renyah." }
-  ],
-  6: [
-    { id: 601, user: "Hendra", rating: 5, date: "Kemarin", comment: "Bikin pempek pake tenggiri Pak Joko hasilnya kenyal sempurna." }
-  ],
-  7: [
-    { id: 701, user: "Lani T.", rating: 5, date: "3 hari lalu", comment: "Bawal putihnya bersih, dikukus jahe rasanya manis alami." }
-  ],
-  8: [
-    { id: 801, user: "Ghani", rating: 4, date: "Seminggu lalu", comment: "Layurnya panjang-panjang, digoreng renyah." }
-  ],
-  9: [
-    { id: 901, user: "Ayu W.", rating: 5, date: "2 hari lalu", comment: "Gurame laut Pak Wayan gak bau lumpur sama sekali!" }
-  ],
-  10: [
-    { id: 1001, user: "Dewi R.", rating: 5, date: "Kemarin", comment: "Udang Bu Ani manis gurih, gampang dikupas." }
   ]
 };
 
@@ -266,13 +255,52 @@ type Order = {
   items: OrderItem[];
   totalIkan: number;
   totalOngkir: number;
-  status: "Menunggu Penjemputan" | "Selesai";
-  rating?: number;
+  status: "Sedang Diantar" | "Menunggu Penjemputan" | "Selesai";
+  kurirNama?: string;
+  kurirPlat?: string;
+  ratingPesanan?: number;
+  ratingToko?: number;
+  ratingKurir?: number;
   bayar?: Metode;
   tanggal?: string;
 };
 type Metode = "QRIS" | "Transfer";
 type Msg = { me: boolean; text: string };
+
+const INITIAL_ORDERS: Order[] = [
+  {
+    no: "JL-1002",
+    itemsSummary: "2 kg Kakap Merah, 1 kg Udang Vaname",
+    items: [
+      { nama: "Kakap Merah", qty: 2, harga: 65000, nelayan: "Pak Wayan" },
+      { nama: "Udang Vaname", qty: 1, harga: 95000, nelayan: "Bu Ani" }
+    ],
+    totalIkan: 225000,
+    totalOngkir: 15000,
+    status: "Sedang Diantar",
+    kurirNama: "Ahmad Subagja",
+    kurirPlat: "D 4512 AB",
+    bayar: "QRIS",
+    tanggal: "Hari ini, 07:15 WIB"
+  },
+  {
+    no: "JL-1001",
+    itemsSummary: "2 kg Tongkol Segar",
+    items: [
+      { nama: "Tongkol Segar", qty: 2, harga: 32000, nelayan: "Pak Darmo" }
+    ],
+    totalIkan: 64000,
+    totalOngkir: 8000,
+    status: "Selesai",
+    kurirNama: "Dedi Setiadi",
+    kurirPlat: "D 3311 BK",
+    ratingPesanan: 5,
+    ratingToko: 5,
+    ratingKurir: 5,
+    bayar: "Transfer",
+    tanggal: "Kemarin, 08:30 WIB"
+  }
+];
 
 function FishArt({ className = "" }: { className?: string }) {
   return (
@@ -307,10 +335,10 @@ const NAV: { k: Tab; label: string; Icon: typeof Home }[] = [
   { k: "akun", label: "Akun", Icon: User },
 ];
 
-function TopNav({ tab, go, cartCount, onCart, user }: { tab: Tab; go: (t: Tab) => void; cartCount: number; onCart: () => void; user: UserProfile }) {
+function TopNav({ tab, go, cartCount, onCart, user, onEditAddress }: { tab: Tab; go: (t: Tab) => void; cartCount: number; onCart: () => void; user: UserProfile; onEditAddress: () => void }) {
   return (
     <header className="sticky top-0 z-30 border-b border-soft/40 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+      <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
         <button onClick={() => go("home")} aria-label="Beranda"><Logo /></button>
         <nav className="hidden items-center gap-1 md:flex">
           {NAV.map(({ k, label }) => (
@@ -318,7 +346,14 @@ function TopNav({ tab, go, cartCount, onCart, user }: { tab: Tab; go: (t: Tab) =
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <span className="hidden items-center gap-1 rounded-full bg-brand px-3 py-1.5 font-sub text-xs font-semibold text-white sm:flex"><MapPin size={14} />{user.kotaKecamatan || "Jatinangor, Sumedang"}</span>
+          <button
+            onClick={onEditAddress}
+            className="flex items-center gap-1 rounded-full bg-brand px-3 py-1.5 font-sub text-xs font-semibold text-white transition hover:bg-brand/90"
+            title="Klik untuk ubah alamat & titik lokasi GMaps"
+          >
+            <MapPin size={14} />
+            <span className="max-w-[120px] truncate sm:max-w-none">{user.kotaKecamatan || "Jatinangor, Sumedang"}</span>
+          </button>
           <button onClick={onCart} className="relative grid size-10 place-items-center rounded-full hover:bg-surface" aria-label="Keranjang">
             <ShoppingCart size={22} className="text-ink" />
             {cartCount > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">{cartCount}</span>}
@@ -334,31 +369,36 @@ function TopNav({ tab, go, cartCount, onCart, user }: { tab: Tab; go: (t: Tab) =
 
 function BottomNav({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-soft/30 bg-white px-2 pb-2 pt-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden">
-      <ul className="grid grid-cols-4">
+    <nav className="fixed inset-x-0 bottom-0 z-30 h-16 border-t border-soft/30 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden">
+      <div className="mx-auto flex h-full max-w-3xl items-center justify-between px-2">
         {NAV.map(({ k, label, Icon }) => {
           const on = tab === k;
           return (
-            <li key={k}>
-              <button onClick={() => go(k)} aria-current={on ? "page" : undefined} className="flex w-full flex-col items-center">
-                <span className="grid h-10 w-full place-items-center">
-                  <span className={`grid place-items-center rounded-full transition-all duration-300 ease-out ${on ? "size-14 -translate-y-4 bg-brand text-white shadow-lg ring-4 ring-white" : "size-10 text-ink/50"}`}>
-                    <Icon size={24} />
-                  </span>
-                </span>
-                <span className={`font-sub text-[11px] font-semibold transition-colors ${on ? "text-brand" : "text-ink/50"}`}>{label}</span>
-              </button>
-            </li>
+            <button
+              key={k}
+              onClick={() => go(k)}
+              className="relative flex h-full w-1/4 flex-col items-center justify-center"
+              aria-current={on ? "page" : undefined}
+            >
+              <div className={`flex items-center justify-center transition-all duration-300 ${on ? "-translate-y-1" : ""}`}>
+                <div className={`grid place-items-center rounded-full transition-all duration-300 ${on ? "size-10 bg-brand text-white shadow-md ring-4 ring-white" : "size-6 text-ink/50"}`}>
+                  <Icon size={on ? 18 : 22} />
+                </div>
+              </div>
+              <span className={`text-[11px] font-sub font-semibold transition-colors mt-0.5 ${on ? "text-brand font-bold" : "text-ink/50"}`}>
+                {label}
+              </span>
+            </button>
           );
         })}
-      </ul>
+      </div>
     </nav>
   );
 }
 
 function ListingCard({ l, onClick, onOpenFisher }: { l: Listing; onClick: () => void; onOpenFisher: (fisherName: string) => void }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl bg-surface p-3 transition hover:shadow-md">
+    <div className="flex flex-col justify-between rounded-2xl bg-surface p-3 transition hover:shadow-md border border-soft/30">
       <button onClick={onClick} className="flex w-full gap-3 text-left">
         <Photo jam={l.jam} className="size-24 shrink-0 rounded-xl sm:size-28" />
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -381,7 +421,9 @@ function ListingCard({ l, onClick, onOpenFisher }: { l: Listing; onClick: () => 
         <button onClick={() => onOpenFisher(l.nelayan)} className="flex items-center gap-1.5 text-xs font-sub font-bold text-ink hover:text-brand transition">
           <Store size={14} className="text-brand" /> {l.nelayan} ({l.daerah})
         </button>
-        <span className="text-[10px] text-ink/50 font-medium">Lihat Toko &rsaquo;</span>
+        <button onClick={() => onOpenFisher(l.nelayan)} className="text-[11px] font-bold text-brand hover:underline">
+          Lihat Toko &rsaquo;
+        </button>
       </div>
     </div>
   );
@@ -400,13 +442,13 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
     .sort((a, b) => (sort === "murah" ? a.harga - b.harga : sort === "mahal" ? b.harga - a.harga : a.id - b.id));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-5 pb-28 md:pb-10">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 pb-28 md:pb-10">
       <h1 className="font-heading text-2xl font-bold text-ink">Halo, {userName}!</h1>
 
       <section className="rounded-3xl bg-surface p-5 md:p-8">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="max-w-md font-heading text-2xl font-bold leading-tight text-ink md:text-4xl">Ikan segar, tangkapan nelayan lokal!</h2>
-          <div className="grid size-20 shrink-0 place-items-center rounded-full bg-brand md:size-32">
+          <h2 className="max-w-md font-heading text-2xl font-bold leading-tight text-ink md:text-3xl">Ikan segar, tangkapan nelayan lokal!</h2>
+          <div className="grid size-20 shrink-0 place-items-center rounded-full bg-brand md:size-24">
             <svg viewBox="0 0 60 40" className="w-3/5" fill="white"><ellipse cx="26" cy="20" rx="20" ry="12" /><path d="M44 20 L58 8 L58 32 Z" /><circle cx="14" cy="17" r="2.5" className="fill-brand" /></svg>
           </div>
         </div>
@@ -416,7 +458,7 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-soft" />
               <Input 
                 value={q} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} 
+                onChange={(e) => setQ(e.target.value)} 
                 onFocus={() => setFocus(true)} 
                 onBlur={() => setTimeout(() => setFocus(false), 150)} 
                 placeholder="Cari ikan, nama nelayan, atau daerah..." 
@@ -475,7 +517,7 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
           />
         </div>
         {list.length ? (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">{list.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2">{list.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
         ) : <p className="py-10 text-center text-ink/60">Ikan tidak ditemukan.</p>}
       </section>
     </div>
@@ -493,7 +535,7 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
     : "5.0";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-5 pb-32 md:pb-10 space-y-6">
+    <div className="mx-auto max-w-3xl px-4 py-5 pb-32 md:pb-10 space-y-6">
       <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
       
       <div className="rounded-3xl bg-surface p-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-soft/40">
@@ -520,7 +562,7 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
 
       <section className="space-y-3">
         <h2 className="font-heading text-lg font-bold text-ink">Semua Tangkapan Segar dari {fisherName}</h2>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {fisherListings.map((l) => (
             <div key={l.id} className="flex flex-col justify-between rounded-2xl bg-surface p-3 transition hover:shadow-md border border-soft/30">
               <button onClick={() => onOpenDetail(l.id)} className="flex w-full gap-3 text-left">
@@ -541,7 +583,7 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
 
       <section className="space-y-3 pt-4 border-t border-soft/40">
         <h2 className="font-heading text-lg font-bold text-ink">Ulasan Pembeli Toko ({allReviews.length})</h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3">
           {allReviews.map((rev, idx) => (
             <div key={idx} className="rounded-2xl bg-surface p-4 space-y-2 border border-soft/30">
               <div className="flex items-center justify-between">
@@ -570,7 +612,7 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
   const ongkirEstimasi = calculateTotalOngkir(l.ongkirFlat, qty);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-5 pb-32 md:pb-10">
+    <div className="mx-auto max-w-3xl px-4 py-5 pb-32 md:pb-10">
       <button onClick={onBack} className="mb-4 grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
       <div className="grid gap-6 md:grid-cols-2">
         
@@ -631,7 +673,7 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
           </div>
 
           <div className="fixed inset-x-0 bottom-0 z-20 flex gap-2 border-t border-soft/30 bg-white p-3 md:static md:border-0 md:bg-transparent md:p-0 md:pt-2">
-            <Button variant="outline" onClick={() => onAdd(qty, false)} className="h-12 flex-1 rounded-xl border-brand bg-white text-brand hover:bg-surface font-sub font-semibold flex items-center justify-center gap-2">
+            <Button onClick={() => onAdd(qty, false)} className="h-12 flex-1 rounded-xl border border-brand bg-white text-brand hover:bg-surface font-sub font-semibold flex items-center justify-center gap-2">
               <ShoppingCart size={18} /> Keranjang
             </Button>
             <Button onClick={() => onAdd(qty, true)} className="h-12 flex-1 rounded-xl bg-brand text-white hover:bg-brand/90 font-sub font-semibold">
@@ -645,11 +687,11 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
             </button>
             <div className="min-w-0 flex-1 text-left">
               <button onClick={() => onOpenFisher(l.nelayan)} className="font-sub font-bold text-ink hover:text-brand transition block truncate">
-                {l.nelayan} <span className="text-xs font-normal text-brand underline ml-1">Lihat Toko &rsaquo;</span>
+                {l.nelayan} <span className="text-xs font-bold text-brand hover:underline ml-1">Lihat Toko &rsaquo;</span>
               </button>
               <p className="flex items-center gap-1 text-sm text-ink/60"><MapPin size={13} />{l.daerah}</p>
             </div>
-            <Button size="icon" variant="outline" onClick={onChat} className="size-11 shrink-0 rounded-full border-brand bg-white text-brand hover:bg-surface" aria-label="Chat"><MessageCircle size={18} /></Button>
+            <Button onClick={onChat} className="size-11 shrink-0 rounded-full border border-brand bg-white text-brand hover:bg-surface p-0" aria-label="Chat"><MessageCircle size={18} /></Button>
           </div>
 
           <div>
@@ -678,11 +720,15 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
                     ))}
                   </div>
                   <p className="text-sm text-ink/80">{rev.comment}</p>
-                  {rev.photoUrl && (
+                  {rev.mediaUrl && (
                     <div className="pt-1">
-                      <div className="relative size-16 overflow-hidden rounded-xl border border-soft bg-white">
-                        <Image src={rev.photoUrl} alt="Foto Ulasan" fill className="object-cover" />
-                      </div>
+                      {rev.mediaType === "video" ? (
+                        <video src={rev.mediaUrl} controls className="h-20 w-32 rounded-xl object-cover border border-soft bg-black" />
+                      ) : (
+                        <div className="relative size-16 overflow-hidden rounded-xl border border-soft bg-white">
+                          <Image src={rev.mediaUrl} alt="Foto Ulasan" fill className="object-cover" />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -960,17 +1006,21 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
                   >
                     Konfirmasi Diterima
                   </Button>
-                ) : o.rating ? (
-                  <span className="flex items-center gap-1 font-sub text-xs font-bold text-brand bg-brand/10 px-3 py-1.5 rounded-xl">
-                    <Star size={14} className="fill-brand" /> Rating: {o.rating}/5
-                  </span>
+                ) : o.ratingPesanan ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="flex items-center gap-1 font-sub text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-xl">
+                      <Star size={13} className="fill-brand" /> Ikan: {o.ratingPesanan}/5
+                    </span>
+                    <span className="text-[10px] text-ink/60 font-semibold">
+                      Toko {o.ratingToko}/5 · Kurir {o.ratingKurir}/5
+                    </span>
+                  </div>
                 ) : (
                   <Button 
                     onClick={() => onReview(o.no)} 
-                    variant="outline" 
-                    className="rounded-xl border-brand bg-white px-4 py-2 font-sub text-xs font-bold text-brand hover:bg-surface shadow-sm shrink-0 whitespace-nowrap"
+                    className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs font-bold text-brand hover:bg-surface shadow-sm shrink-0 whitespace-nowrap"
                   >
-                    Beri Ulasan
+                    Beri Ulasan Lengkap
                   </Button>
                 )}
               </div>
@@ -1160,8 +1210,9 @@ function HelpCenterView({ onBack, onChatAdmin }: { onBack: () => void; onChatAdm
   );
 }
 
-function AkunView({ user, favs, ordersCount, onOpen, onEditProfile, onEditAddress, onHelp }: { user: UserProfile; favs: Listing[]; ordersCount: number; onOpen: (id: number) => void; onEditProfile: () => void; onEditAddress: () => void; onHelp: () => void }) {
+function AkunView({ user, favs, ordersCount, onOpen, onOpenFisher, onEditProfile, onEditAddress, onHelp }: { user: UserProfile; favs: Listing[]; ordersCount: number; onOpen: (id: number) => void; onOpenFisher: (fisher: string) => void; onEditProfile: () => void; onEditAddress: () => void; onHelp: () => void }) {
   const row = "flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left font-sub font-semibold text-ink hover:shadow-md transition border border-soft/30";
+
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-5 pb-28 md:pb-10">
       <h1 className="font-heading text-2xl font-bold text-ink">Akun</h1>
@@ -1178,7 +1229,7 @@ function AkunView({ user, favs, ordersCount, onOpen, onEditProfile, onEditAddres
           <p className="font-heading text-lg font-bold text-ink truncate">{user.nama}</p>
           <p className="text-sm text-ink/60 truncate">{user.email} · {user.phone}</p>
         </div>
-        <Button onClick={onEditProfile} variant="outline" className="rounded-xl border-brand bg-white px-4 py-2 font-sub text-xs text-brand hover:bg-surface shrink-0">
+        <Button onClick={onEditProfile} className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs text-brand hover:bg-surface shrink-0">
           Edit Profil
         </Button>
       </div>
@@ -1188,10 +1239,10 @@ function AkunView({ user, favs, ordersCount, onOpen, onEditProfile, onEditAddres
           <MapPin className="text-brand shrink-0 mt-0.5" size={20} />
           <div className="min-w-0 flex-1 space-y-0.5">
             <b className="block font-sub text-xs text-ink/60">Alamat Pengiriman Utama</b>
-            <span className="font-bold text-ink block truncate">{user.alamat}</span>
-            <span className="text-xs text-ink/70 block truncate">{user.kotaKecamatan}</span>
+            <span className="font-bold text-ink block truncate">{user.jalanNo}</span>
+            <span className="text-xs text-ink/70 block truncate">RT {user.rt} / RW {user.rw} · {user.kotaKecamatan}</span>
             {user.patokan && <span className="text-[11px] text-brand font-semibold block truncate">Patokan: {user.patokan}</span>}
-            <span className="text-[10px] text-ink/50 block font-mono">Pin Lokasi: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
+            <span className="text-[10px] text-ink/50 block font-mono">GMaps Pin: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
           </div>
         </div>
         <button onClick={onEditAddress} className="font-sub text-xs font-bold text-brand hover:underline shrink-0">
@@ -1202,7 +1253,7 @@ function AkunView({ user, favs, ordersCount, onOpen, onEditProfile, onEditAddres
       <section>
         <h2 className="mb-2 font-heading text-lg font-bold text-ink">Ikan Favorit ({favs.length})</h2>
         {favs.length ? (
-          <div className="grid gap-3 md:grid-cols-2">{favs.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={() => {}} />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2">{favs.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
         ) : (
           <p className="rounded-2xl bg-surface p-6 text-center text-sm text-ink/60 border border-soft/30">Belum ada favorit. Tekan bintang di halaman ikan.</p>
         )}
@@ -1227,7 +1278,7 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     onSave({ ...user, nama, email, phone, photoUrl });
     onClose();
@@ -1279,18 +1330,37 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 }
 
 function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClose: () => void; onSave: (updated: Partial<UserProfile>) => void }) {
-  const [alamat, setAlamat] = useState(user.alamat);
+  const [jalanNo, setJalanNo] = useState(user.jalanNo);
+  const [rt, setRt] = useState(user.rt);
+  const [rw, setRw] = useState(user.rw);
   const [kotaKecamatan, setKotaKecamatan] = useState(user.kotaKecamatan);
   const [patokan, setPatokan] = useState(user.patokan);
   const [lat, setLat] = useState(user.lat);
   const [lng, setLng] = useState(user.lng);
   const [isLocating, setIsLocating] = useState(false);
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? GOOGLE_MAPS_API_KEY : "",
+  });
+
+  const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      setLat(Number(e.latLng.lat().toFixed(4)));
+      setLng(Number(e.latLng.lng().toFixed(4)));
+    }
+  }, []);
+
+  const onMarkerDragEnd = useCallback((e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      setLat(Number(e.latLng.lat().toFixed(4)));
+      setLng(Number(e.latLng.lng().toFixed(4)));
+    }
+  }, []);
+
+  const handleSimulatedClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
     const newLat = Number((-6.93 + (y / rect.height) * 0.02).toFixed(4));
     const newLng = Number((107.77 + (x / rect.width) * 0.02).toFixed(4));
     setLat(newLat);
@@ -1299,23 +1369,35 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 
   const handleCurrentLocation = () => {
     setIsLocating(true);
-    setTimeout(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLat(Number(pos.coords.latitude.toFixed(4)));
+          setLng(Number(pos.coords.longitude.toFixed(4)));
+          setIsLocating(false);
+        },
+        () => {
+          setLat(-6.9312);
+          setLng(107.7735);
+          setIsLocating(false);
+        }
+      );
+    } else {
       setLat(-6.9312);
       setLng(107.7735);
-      setKotaKecamatan("Jatinangor, Sumedang");
       setIsLocating(false);
-    }, 600);
+    }
   };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onSave({ alamat, kotaKecamatan, patokan, lat, lng });
+    onSave({ jalanNo, rt, rw, kotaKecamatan, patokan, lat, lng });
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
-      <form role="dialog" aria-modal="true" onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg max-h-[90vh] space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
+      <form role="dialog" aria-modal="true" onSubmit={handleSubmit} onClick={(e: React.MouseEvent<HTMLFormElement>) => e.stopPropagation()} className="w-full max-w-lg max-h-[90vh] space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-xl font-bold text-ink">Ubah Alamat Pengiriman</h2>
           <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft text-ink" aria-label="Tutup"><X size={18} /></button>
@@ -1323,51 +1405,86 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold text-ink">Tentukan Titik Pin Lokasi (Peta)</label>
+            <label className="block text-xs font-bold text-ink">Atur Titik Pin Lokasi (Geser/Klik Peta)</label>
             <button 
               type="button" 
               onClick={handleCurrentLocation} 
               disabled={isLocating}
               className="flex items-center gap-1 font-sub text-xs font-bold text-brand hover:underline"
             >
-              <LocateFixed size={14} /> {isLocating ? "Mencari titik..." : "Gunakan Lokasi Saat Ini"}
+              <LocateFixed size={14} /> {isLocating ? "Mencari titik..." : "Lokasi Saat Ini"}
             </button>
           </div>
 
-          <div 
-            onClick={handleMapClick}
-            className="relative h-44 w-full overflow-hidden rounded-2xl border border-soft/80 bg-[#e5e3df] cursor-pointer shadow-inner group"
-          >
-            <div className="absolute inset-0 bg-[radial-gradient(#0B6E99_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
-            <div className="absolute inset-x-0 top-1/2 h-10 bg-white/60 -translate-y-1/2 -rotate-6 pointer-events-none" />
-            <div className="absolute inset-y-0 left-1/2 w-10 bg-white/60 -translate-x-1/2 rotate-12 pointer-events-none" />
+          <div className="relative overflow-hidden rounded-2xl border border-soft/80 shadow-inner">
+            {isLoaded && GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY" ? (
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={{ lat, lng }}
+                zoom={15}
+                onClick={onMapClick}
+                options={{ disableDefaultUI: true, zoomControl: true }}
+              >
+                <Marker position={{ lat, lng }} draggable={true} onDragEnd={onMarkerDragEnd} />
+              </GoogleMap>
+            ) : (
+              <div 
+                onClick={handleSimulatedClick}
+                className="relative h-44 w-full bg-[#e5e3df] cursor-pointer group"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(#0B6E99_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
+                <div className="absolute inset-x-0 top-1/2 h-10 bg-white/60 -translate-y-1/2 -rotate-6 pointer-events-none" />
+                <div className="absolute inset-y-0 left-1/2 w-10 bg-white/60 -translate-x-1/2 rotate-12 pointer-events-none" />
 
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none transition-transform duration-200 group-hover:scale-110">
-              <div className="rounded-md bg-ink text-white px-2 py-0.5 text-[10px] font-bold shadow-md whitespace-nowrap mb-1">
-                Klik untuk atur titik
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none transition-transform duration-200 group-hover:scale-110">
+                  <div className="rounded-md bg-ink text-white px-2 py-0.5 text-[10px] font-bold shadow-md whitespace-nowrap mb-1">
+                    Klik peta untuk pas-kan titik
+                  </div>
+                  <MapPin size={32} className="text-brand fill-brand/20 drop-shadow-md" />
+                </div>
               </div>
-              <MapPin size={32} className="text-brand fill-brand/20 drop-shadow-md" />
-            </div>
+            )}
 
-            <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2 py-1 text-[10px] font-mono font-bold text-ink shadow-sm">
+            <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2 py-1 text-[10px] font-mono font-bold text-ink shadow-sm z-10">
               Lat: {lat}, Lng: {lng}
             </span>
           </div>
-          <p className="text-[11px] text-ink/60">Klik area peta di atas untuk menyesuaikan titik tepat kurir mengantar ikan.</p>
+          <p className="text-[11px] text-ink/60">Pastikan titik di atas sesuai dengan patokan rumahmu agar kurir tidak tersesat.</p>
         </div>
 
         <div className="space-y-3 text-xs font-semibold text-ink border-t border-soft/40 pt-3">
           <div>
-            <label className="block mb-1">Alamat Jalan / Gedung / Nomor Rumah</label>
-            <textarea 
-              value={alamat} 
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlamat(e.target.value)} 
-              rows={2} 
+            <label className="block mb-1">Nama Jalan, Gedung, atau Nomor Rumah</label>
+            <Input 
+              value={jalanNo} 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setJalanNo(e.target.value)} 
               required 
-              placeholder="Jl. Melati No. 12, RT 02/RW 05" 
-              className="w-full rounded-xl border border-soft p-3 text-sm text-ink placeholder:text-soft outline-none focus:border-brand"
+              placeholder="Jl. Melati No. 12" 
+              className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block mb-1">RT</label>
+              <Input 
+                value={rt} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRt(e.target.value)} 
+                placeholder="02" 
+                className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
+              />
+            </div>
+            <div>
+              <label className="block mb-1">RW</label>
+              <Input 
+                value={rw} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRw(e.target.value)} 
+                placeholder="05" 
+                className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block mb-1">Kota & Kecamatan</label>
@@ -1384,7 +1501,7 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               <Input 
                 value={patokan} 
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPatokan(e.target.value)} 
-                placeholder="Depan toko kelontong" 
+                placeholder="Pagar hitam warung" 
                 className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
               />
             </div>
@@ -1418,7 +1535,7 @@ function ReportSheet({ fisherName, onClose, onSubmit }: { fisherName: string; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
+      <div role="dialog" aria-modal="true" onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-xl font-bold text-ink">Laporkan Percakapan</h2>
           <button onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft text-ink" aria-label="Tutup"><X size={18} /></button>
@@ -1468,63 +1585,97 @@ function ReportSheet({ fisherName, onClose, onSubmit }: { fisherName: string; on
   );
 }
 
-function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productName: string; fisherName: string; onClose: () => void; onSubmit: (r: number, note: string, photoUrl?: string) => void }) {
-  const [r, setR] = useState(5);
+function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productName: string; fisherName: string; onClose: () => void; onSubmit: (rPesanan: number, rToko: number, rKurir: number, note: string, mediaUrl?: string, mediaType?: "image" | "video") => void }) {
+  const [rPesanan, setRPesanan] = useState(5);
+  const [rToko, setRToko] = useState(5);
+  const [rKurir, setRKurir] = useState(5);
   const [note, setNote] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video">("image");
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPhoto(url);
+      const isVid = file.type.startsWith("video/");
+      setMediaType(isVid ? "video" : "image");
+      setMediaUrl(URL.createObjectURL(file));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
+      <div role="dialog" aria-modal="true" onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()} className="w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-xl font-bold text-ink">Beri Ulasan Produk</h2>
+          <h2 className="font-heading text-xl font-bold text-ink">Beri Ulasan Pesanan</h2>
           <button onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft text-ink" aria-label="Tutup"><X size={18} /></button>
         </div>
-        <p className="text-sm text-ink/70">Bagaimana kualitas {productName} dari {fisherName}?</p>
+        <p className="text-xs text-ink/70">Penilaianmu membantu meningkatkan kualitas nelayan & kurir JalaLink.</p>
         
-        <div className="flex justify-center gap-2 py-2">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button key={n} onClick={() => setR(n)} aria-label={`${n} bintang`} className="transition hover:scale-110">
-              <Star size={36} className={n <= r ? "fill-brand text-brand" : "text-soft"} />
-            </button>
-          ))}
+        <div className="rounded-2xl bg-surface p-3 space-y-1.5 border border-soft/40">
+          <span className="font-sub text-xs font-bold text-ink block">1. Kualitas Pesanan Ikan ({productName})</span>
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} type="button" onClick={() => setRPesanan(n)} className="transition hover:scale-110">
+                <Star size={26} className={n <= rPesanan ? "fill-brand text-brand" : "text-soft"} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-surface p-3 space-y-1.5 border border-soft/40">
+          <span className="font-sub text-xs font-bold text-ink block">2. Pelayanan Toko Nelayan ({fisherName})</span>
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} type="button" onClick={() => setRToko(n)} className="transition hover:scale-110">
+                <Star size={26} className={n <= rToko ? "fill-brand text-brand" : "text-soft"} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-surface p-3 space-y-1.5 border border-soft/40">
+          <span className="font-sub text-xs font-bold text-ink block">3. Ketepatan & Keramahan Kurir</span>
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} type="button" onClick={() => setRKurir(n)} className="transition hover:scale-110">
+                <Star size={26} className={n <= rKurir ? "fill-brand text-brand" : "text-soft"} />
+              </button>
+            ))}
+          </div>
         </div>
 
         <textarea 
           value={note} 
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNote(e.target.value)} 
           rows={3} 
-          placeholder="Ceritakan kesegaran ikan, rasa, atau kondisi saat tiba..." 
+          placeholder="Ceritakan kesegaran ikan, packing es, atau pengalaman pengiriman..." 
           className="w-full rounded-xl border border-soft p-3 text-sm text-ink placeholder:text-soft outline-none focus:border-brand" 
         />
 
         <div className="space-y-2">
-          <label className="block text-xs font-semibold text-ink">Foto Ulasan (Opsional)</label>
+          <label className="block text-xs font-semibold text-ink">Foto / Video Ulasan (Opsional)</label>
           <div className="flex items-center gap-3">
-            <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-soft/80 text-soft hover:border-brand hover:text-brand transition">
-              <Camera size={20} />
-              <span className="text-[10px] mt-1 font-semibold">Upload</span>
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+            <label className="flex h-16 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-soft/80 text-soft hover:border-brand hover:text-brand transition">
+              <Camera size={18} />
+              <span className="text-[10px] mt-0.5 font-semibold">Upload</span>
+              <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
             </label>
-            {photo && (
-              <div className="relative h-16 w-16 overflow-hidden rounded-xl border border-brand">
-                <Image src={photo} alt="Preview Foto" fill className="object-cover" />
-                <button onClick={() => setPhoto(null)} className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"><X size={12} /></button>
+
+            {mediaUrl && (
+              <div className="relative h-16 w-24 overflow-hidden rounded-xl border border-brand bg-black">
+                {mediaType === "video" ? (
+                  <video src={mediaUrl} className="h-full w-full object-cover" />
+                ) : (
+                  <Image src={mediaUrl} alt="Preview Media" fill className="object-cover" />
+                )}
+                <button onClick={() => setMediaUrl(null)} className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white"><X size={12} /></button>
               </div>
             )}
           </div>
         </div>
 
-        <Button onClick={() => { onSubmit(r, note, photo || undefined); onClose(); }} className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90">
-          Kirim Ulasan
+        <Button onClick={() => { onSubmit(rPesanan, rToko, rKurir, note, mediaUrl || undefined, mediaType); onClose(); }} className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90">
+          Kirim Ulasan Lengkap
         </Button>
       </div>
     </div>
@@ -1542,7 +1693,9 @@ export default function Page() {
     nama: "Ushi",
     email: "ushi@email.com",
     phone: "+62 812-3456-7890",
-    alamat: "Jl. Melati No. 12",
+    jalanNo: "Jl. Melati No. 12",
+    rt: "02",
+    rw: "05",
     kotaKecamatan: "Jatinangor, Sumedang",
     patokan: "Pagar hitam depan warung kelontong",
     lat: -6.9312,
@@ -1556,7 +1709,7 @@ export default function Page() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [toast, setToast] = useState("");
   const [favs, setFavs] = useState<number[]>([]);
   const [chatWith, setChatWith] = useState<string | null>(null);
@@ -1644,7 +1797,9 @@ export default function Page() {
       items: itemsDetail,
       totalIkan,
       totalOngkir,
-      status: "Menunggu Penjemputan",
+      status: "Sedang Diantar",
+      kurirNama: "Ahmad Subagja",
+      kurirPlat: "D 4512 AB",
       bayar,
       tanggal: "Hari ini"
     }, ...o]);
@@ -1662,7 +1817,14 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-white font-body text-ink">
-      <TopNav tab={tab} go={go} cartCount={cartItems.length} onCart={() => setCartOpen(true)} user={userProfile} />
+      <TopNav 
+        tab={tab} 
+        go={go} 
+        cartCount={cartItems.length} 
+        onCart={() => setCartOpen(true)} 
+        user={userProfile} 
+        onEditAddress={() => setIsEditAddressOpen(true)}
+      />
       {toast && <div className="fixed left-1/2 top-4 z-[60] -translate-x-1/2 rounded-xl bg-ink px-4 py-3 font-sub text-sm font-medium text-white shadow-lg">{toast}</div>}
 
       {tab === "home" && (
@@ -1730,6 +1892,7 @@ export default function Page() {
             favs={listings.filter((l) => favs.includes(l.id))} 
             ordersCount={orders.length} 
             onOpen={(id) => { setTab("home"); setOpenId(id); window.scrollTo({ top: 0 }); }} 
+            onOpenFisher={(fisher) => { setTab("home"); setSelectedFisher(fisher); window.scrollTo({ top: 0 }); }}
             onEditProfile={() => setIsEditProfileOpen(true)}
             onEditAddress={() => setIsEditAddressOpen(true)}
             onHelp={() => setIsHelpCenterOpen(true)}
@@ -1766,9 +1929,9 @@ export default function Page() {
           productName={detail.nama} 
           fisherName={detail.nelayan} 
           onClose={() => setIsDetailReviewOpen(false)} 
-          onSubmit={(r, note, photoUrl) => {
-            const newRev: ReviewItem = { id: Date.now(), user: userProfile.nama, rating: r, date: "Baru saja", comment: note, photoUrl };
-            setListings((ls) => ls.map((x) => x.id === detail.id ? { ...x, rating: Number(((x.rating * x.ulasanCount + r) / (x.ulasanCount + 1)).toFixed(1)), ulasanCount: x.ulasanCount + 1, reviews: [newRev, ...x.reviews] } : x));
+          onSubmit={(rPesanan, rToko, rKurir, note, mediaUrl, mediaType) => {
+            const newRev: ReviewItem = { id: Date.now(), user: userProfile.nama, rating: rPesanan, date: "Baru saja", comment: note, mediaUrl, mediaType };
+            setListings((ls) => ls.map((x) => x.id === detail.id ? { ...x, rating: Number(((x.rating * x.ulasanCount + rPesanan) / (x.ulasanCount + 1)).toFixed(1)), ulasanCount: x.ulasanCount + 1, reviews: [newRev, ...x.reviews] } : x));
             flash("Terima kasih! Ulasanmu berhasil dikirim.");
           }} 
         />
@@ -1777,11 +1940,11 @@ export default function Page() {
       {reviewForOrder && (
         <ReviewSheet 
           productName={orders.find((o) => o.no === reviewForOrder)?.itemsSummary ?? "Ikan"} 
-          fisherName="Nelayan" 
+          fisherName={orders.find((o) => o.no === reviewForOrder)?.items[0]?.nelayan ?? "Nelayan"} 
           onClose={() => setReviewForOrder(null)} 
-          onSubmit={(r) => {
-            setOrders((os) => os.map((o) => (o.no === reviewForOrder ? { ...o, rating: r } : o)));
-            flash("Terima kasih atas ulasan pesananmu!");
+          onSubmit={(rPesanan, rToko, rKurir) => {
+            setOrders((os) => os.map((o) => (o.no === reviewForOrder ? { ...o, ratingPesanan: rPesanan, ratingToko: rToko, ratingKurir: rKurir } : o)));
+            flash("Terima kasih atas ulasan lengkapmu!");
           }} 
         />
       )}
@@ -1791,7 +1954,7 @@ export default function Page() {
         onClose={() => setCartOpen(false)} 
         cartItems={cartItems} 
         listings={listings}
-        userAddress={`${userProfile.alamat}, ${userProfile.kotaKecamatan}`}
+        userAddress={`${userProfile.jalanNo}, RT ${userProfile.rt}/RW ${userProfile.rw}, ${userProfile.kotaKecamatan}`}
         onQtyChange={handleQtyChange}
         onToggleCheck={handleToggleCheck}
         onRemoveItem={handleRemoveItem}
