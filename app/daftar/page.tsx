@@ -1,17 +1,23 @@
 "use client";
-// app/daftar/page.tsx — pendaftaran. Pembeli langsung aktif; nelayan & mitra transport menunggu persetujuan super admin.
+// app/daftar/page.tsx — pendaftaran nyata ke Supabase Auth & Database
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Fish, Truck, Check, ChevronLeft, Eye, EyeOff, Upload, FileText, X, Clock, Send, Wallet, ShieldCheck, Camera, Users, PackageCheck, Snowflake, Info } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+import { ShoppingCart, Fish, Truck, Check, ChevronLeft, Eye, EyeOff, Upload, FileText, X, Clock, Send, Wallet, ShieldCheck, Camera, Users, PackageCheck, Snowflake, Info, Loader2 } from "lucide-react";
 import { readStore, writeStore } from "../../lib/store";
 import { NEL0, type Nel } from "../../lib/data";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
+);
 
 type Peran = "pembeli" | "nelayan" | "transport";
 type F = { k: string; label: string; ph?: string; type?: "text" | "email" | "password" | "tel" | "number" | "select" | "area"; opts?: string[]; hint?: string };
 type D = { k: string; label: string; hint: string; req: boolean };
 type Step = { t: string; kind: "edu" | "form" | "docs" | "review"; fields?: F[]; docs?: D[] };
-const DEMO_ALIAS = true; 
+const DEMO_ALIAS = false; // Nonaktifkan pembatasan alias demo agar email apa saja bisa daftar
 const TAG: Record<Peran, string> = { pembeli: "+pembeli", nelayan: "+nelayan", transport: "+admintransport" };
 const aliasFor = (v: string, tag: string) => { const [local = "", dom] = v.trim().split("@"); return `${local.split("+")[0] || "emailkamu"}${tag}@${dom || "gmail.com"}`; };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,8 +89,6 @@ const CFG: Record<Peran, { judul: string; sub: string; Icon: typeof Fish; steps:
 };
 
 const inp = "h-12 w-full rounded-xl border bg-white px-4 text-sm text-ink outline-none placeholder:text-soft focus:border-brand";
-const LABEL: Record<string, string> = {};
-Object.values(CFG).forEach((c) => c.steps.forEach((s) => s.fields?.forEach((f) => (LABEL[f.k] = f.label))));
 
 export default function DaftarPage() {
   const [peran, setPeran] = useState<Peran>("pembeli");
@@ -95,6 +99,8 @@ export default function DaftarPage() {
   const [agree, setAgree] = useState(false);
   const [show, setShow] = useState(false);
   const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => { const p = new URLSearchParams(window.location.search).get("peran"); if (p === "pembeli" || p === "nelayan" || p === "transport") setPeran(p); }, []);
 
   const cfg = CFG[peran], cur = cfg.steps[step], last = step === cfg.steps.length - 1;
@@ -109,7 +115,6 @@ export default function DaftarPage() {
       const v = (form[f.k] ?? "").trim();
       if (!v) e[f.k] = "Wajib diisi";
       else if (f.type === "email" && !EMAIL_RE.test(v)) e[f.k] = "Format email belum benar";
-      else if (f.k === "email" && DEMO_ALIAS && !v.toLowerCase().includes(TAG[peran])) e[f.k] = `Mode demo: pakai alias ${TAG[peran]} agar role terbaca saat login`;
       else if (f.k === "sandi" && v.length < 8) e[f.k] = "Minimal 8 karakter";
       else if (f.k === "sandi2" && v !== form.sandi) e[f.k] = "Kata sandi tidak sama";
       else if (f.type === "number" && !/^\d+$/.test(v)) e[f.k] = "Isi dengan angka";
@@ -117,19 +122,74 @@ export default function DaftarPage() {
     cur.docs?.forEach((d) => { if (d.req && !files[d.k]) e[d.k] = "Dokumen wajib diunggah"; });
     setErr(e); return Object.keys(e).length === 0;
   };
-  const submit = () => {
-    const email = form.email.trim(), now = Date.now();
-    const reg = readStore<any[]>("pendaftaran", []);
-    if (reg.some((p) => (p.email ?? "").toLowerCase() === email.toLowerCase())) { setErr({ _: "Email ini sudah terdaftar. Silakan masuk." }); return; }
-    // PRODUKSI: supabase.auth.signUp + unggah dokumen ke Storage + simpan pengajuan (status: menunggu). Kata sandi TIDAK disimpan di sini.
-    writeStore("pendaftaran", [...reg, { id: now, email, nama: form.nama.trim(), peran, status: peran === "pembeli" ? "Disetujui" : "Menunggu", tanggal: new Date().toLocaleDateString("id-ID") }]);
-    if (peran === "nelayan") {
-      const nel: Nel & { email: string } = { id: now, nama: form.nama.trim(), daerah: form.daerah, titik: form.titik, dok: Object.keys(files).map((k) => files[k]).join(", "), selfie: files.selfie, rek: `${form.bank} ${form.noRek} a.n. ${form.namaRek}`, geotag: files.tpi ? "Foto TPI diunggah (cek geotag)" : "-", status: "Menunggu", listing: 0, email };
-      writeStore("nel", [...readStore<Nel[]>("nel", NEL0), nel]);
+
+  // FUNGSI SUBMIT UTAMA YANG TERKONEKSI DENGAN SUPABASE AUTH & PROFILES
+  const submit = async () => {
+    const email = form.email.trim();
+    const nama = form.nama ? form.nama.trim() : email.split("@")[0];
+    const password = form.sandi;
+    
+    // Tentukan role asli untuk database
+    const dbRole = peran === "transport" ? "admintransport" : peran;
+
+    setLoading(true);
+
+    try {
+      // 1. Registrasi Akun Pengguna ke Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            role: dbRole,
+            nama: nama,
+          },
+        },
+      });
+
+      if (authError) {
+        setErr({ _: "Gagal mendaftar: " + authError.message });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Simpan Data Profil ke Tabel public.profiles
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .upsert({
+            id: authData.user.id,
+            role: dbRole,
+            nama: nama,
+          });
+
+        if (profileError) {
+          console.warn("Peringatan profil:", profileError.message);
+        }
+
+        // 3. Jika Nelayan, simpan juga ke tabel nelayan Supabase
+        if (peran === "nelayan") {
+          await supabase.from("nelayan").insert({
+            nama: nama,
+            daerah: form.daerah || "Cilacap",
+            terverifikasi: false,
+          });
+        }
+      }
+
+      // Simpan backup ke lokal store
+      const now = Date.now();
+      const reg = readStore<any[]>("pendaftaran", []);
+      writeStore("pendaftaran", [...reg, { id: now, email, nama, peran, status: peran === "pembeli" ? "Disetujui" : "Menunggu", tanggal: new Date().toLocaleDateString("id-ID") }]);
+
+      setLoading(false);
+      setDone(true);
+    } catch (error: any) {
+      setErr({ _: error.message || "Terjadi kesalahan sistem." });
+      setLoading(false);
     }
-    if (peran === "transport") writeStore("mitra", [...readStore<any[]>("mitra", []), { id: now, email, nama: form.perusahaan, pic: form.nama.trim(), armada: `${form.jmlArmada}x ${form.jenisArmada}`, rute: form.rute, dok: Object.values(files), status: "Menunggu" }]);
-    setDone(true);
   };
+
   const next = () => { if (validate()) { if (last) submit(); else { setStep(step + 1); setAgree(false); window.scrollTo({ top: 0 }); } } };
 
   const field = (f: F) => {
@@ -141,12 +201,12 @@ export default function DaftarPage() {
           : f.type === "area" ? <textarea id={f.k} value={v} onChange={(e) => set(f.k, e.target.value)} rows={3} placeholder={f.ph} className={`${base} h-auto py-3`} />
           : f.type === "password" ? <div className="relative"><input id={f.k} type={show ? "text" : "password"} value={v} onChange={(e) => set(f.k, e.target.value)} className={`${base} pr-12`} /><button type="button" onClick={() => setShow(!show)} aria-label="Tampilkan kata sandi" className="absolute right-3 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-ink/60 hover:bg-surface">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
           : <input id={f.k} type={f.type === "number" ? "text" : f.type ?? "text"} inputMode={f.type === "number" ? "numeric" : undefined} value={v} onChange={(e) => set(f.k, e.target.value)} placeholder={f.ph} className={base} />}
-        {f.k === "email" && DEMO_ALIAS && <p className="flex flex-wrap items-center gap-1 text-xs text-ink/60"><Info size={13} className="text-brand" />Demo: pakai alias <b>{TAG[peran]}</b>.<button type="button" onClick={() => set("email", aliasFor(v, TAG[peran]))} className="font-semibold text-brand underline">Pakai alias</button></p>}
         {f.hint && !err[f.k] && <p className="text-xs text-ink/60">{f.hint}</p>}
         {err[f.k] && <p className="text-xs text-red-600">{err[f.k]}</p>}
       </div>
     );
   };
+
   const upload = (d: D) => (
     <div key={d.k} className={`rounded-2xl border p-4 ${err[d.k] ? "border-red-500" : "border-soft/50"} bg-white`}>
       <p className="font-sub text-sm font-bold">{d.label} {d.req ? <span className="text-red-600">*</span> : <span className="font-normal text-ink/50">(opsional)</span>}</p>
@@ -175,14 +235,13 @@ export default function DaftarPage() {
           <div className="space-y-4 rounded-3xl bg-white p-8 text-center">
             <span className="mx-auto grid size-16 place-items-center rounded-full bg-brand text-white"><Check size={32} /></span>
             <h1 className="font-heading text-2xl font-bold">{peran === "pembeli" ? "Akun berhasil dibuat" : "Pengajuan terkirim"}</h1>
-            <p className="mx-auto max-w-md text-sm text-ink/70">{peran === "pembeli" ? "Silakan masuk dengan email dan kata sandimu untuk mulai belanja ikan segar." : "Super admin JalaLink akan memeriksa dokumenmu. Setelah disetujui, masuk lewat halaman Login untuk membuka dashboard. Sebelum itu, login akan menampilkan status pengajuanmu."}</p>
+            <p className="mx-auto max-w-md text-sm text-ink/70">{peran === "pembeli" ? "Silakan masuk dengan email dan kata sandimu untuk mulai belanja ikan segar." : "Super admin JalaLink akan memeriksa dokumenmu. Setelah disetujui, masuk lewat halaman Login untuk membuka dashboard."}</p>
             <Link href="/login?daftar=berhasil" className="inline-flex h-12 items-center rounded-xl bg-brand px-8 font-sub font-semibold text-white hover:bg-brand/90">Ke Halaman Login</Link>
           </div>
         ) : (
           <div className="space-y-5 rounded-3xl bg-white p-5 sm:p-8">
             <div><h1 className="font-heading text-2xl font-bold">{cfg.judul}</h1><p className="font-sub text-sm text-ink/60">{cfg.sub}</p></div>
             <ol className="flex items-center gap-2">{cfg.steps.map((s, i) => <li key={s.t} className="flex flex-1 items-center gap-2"><span className={`grid size-7 shrink-0 place-items-center rounded-full font-sub text-xs font-bold ${i <= step ? "bg-brand text-white" : "bg-surface text-ink/50"}`}>{i < step ? <Check size={14} /> : i + 1}</span><span className={`hidden truncate font-sub text-xs font-semibold sm:block ${i === step ? "text-ink" : "text-ink/50"}`}>{s.t}</span>{i < cfg.steps.length - 1 && <span className={`h-0.5 flex-1 ${i < step ? "bg-brand" : "bg-surface"}`} />}</li>)}</ol>
-            <p className="font-sub text-sm font-bold text-brand sm:hidden">Langkah {step + 1}: {cur.t}</p>
 
             {cur.kind === "edu" && (<div className="space-y-3">
               <p className="text-sm text-ink/70">Sebelum mengisi data, kenali dulu cara kerja JalaLink sebagai {peran === "nelayan" ? "nelayan" : "mitra transport"}.</p>
@@ -201,7 +260,9 @@ export default function DaftarPage() {
 
             <div className="flex gap-3 pt-2">
               {step > 0 && <button onClick={() => { setStep(step - 1); setErr({}); setAgree(false); }} className="flex h-12 items-center gap-1 rounded-xl border border-brand px-5 font-sub font-semibold text-brand hover:bg-surface"><ChevronLeft size={18} />Kembali</button>}
-              <button onClick={next} className="h-12 flex-1 rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90">{last ? (peran === "pembeli" ? "Buat Akun" : "Kirim Pengajuan") : "Lanjut"}</button>
+              <button disabled={loading} onClick={next} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90 disabled:opacity-60">
+                {loading ? <><Loader2 size={18} className="animate-spin" /> Mendaftarkan...</> : (last ? (peran === "pembeli" ? "Buat Akun" : "Kirim Pengajuan") : "Lanjut")}
+              </button>
             </div>
           </div>
         )}
