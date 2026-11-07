@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";
-import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed, Ticket, CheckCircle2, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed, Ticket, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
@@ -361,27 +362,27 @@ const NAV: { k: Tab; label: string; Icon: typeof Home }[] = [
 function TopNav({ tab, go, cartCount, onCart, user, onEditAddress }: { tab: Tab; go: (t: Tab) => void; cartCount: number; onCart: () => void; user: UserProfile; onEditAddress: () => void }) {
   return (
     <header className="sticky top-0 z-30 border-b border-soft/40 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <button onClick={() => go("home")} aria-label="Beranda"><Logo /></button>
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-2 md:flex">
           {NAV.map(({ k, label }) => (
-            <button key={k} onClick={() => go(k)} className={`rounded-full px-4 py-2 font-sub text-sm font-semibold transition-colors ${tab === k ? "bg-brand text-white" : "text-ink hover:bg-surface"}`}>{label}</button>
+            <button key={k} onClick={() => go(k)} className={`rounded-full px-5 py-2 font-sub text-sm font-semibold transition-colors ${tab === k ? "bg-brand text-white shadow-sm" : "text-ink hover:bg-surface"}`}>{label}</button>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={onEditAddress}
-            className="flex items-center gap-1 rounded-full bg-brand px-3 py-1.5 font-sub text-xs font-semibold text-white transition hover:bg-brand/90"
+            className="flex items-center gap-1.5 rounded-full bg-brand px-3.5 py-1.5 font-sub text-xs font-semibold text-white transition hover:bg-brand/90 shadow-sm"
             title="Klik untuk ubah alamat & titik lokasi"
           >
             <MapPin size={14} />
             <span className="max-w-[120px] truncate sm:max-w-none">{user.kotaKecamatan || "Jatinangor, Sumedang"}</span>
           </button>
-          <button onClick={onCart} className="relative grid size-10 place-items-center rounded-full hover:bg-surface" aria-label="Keranjang">
+          <button onClick={onCart} className="relative grid size-10 place-items-center rounded-full hover:bg-surface transition" aria-label="Keranjang">
             <ShoppingCart size={22} className="text-ink" />
-            {cartCount > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">{cartCount}</span>}
+            {cartCount > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-brand text-[11px] font-bold text-white shadow-sm">{cartCount}</span>}
           </button>
-          <button onClick={() => go("akun")} className="grid size-10 place-items-center rounded-full bg-brand font-sub font-bold text-white transition hover:opacity-90 active:scale-95" aria-label="Akun Saya">
+          <button onClick={() => go("akun")} className="grid size-10 place-items-center rounded-full bg-brand font-sub font-bold text-white transition hover:opacity-90 active:scale-95 shadow-sm" aria-label="Akun Saya">
             {user.nama ? user.nama[0].toUpperCase() : "U"}
           </button>
         </div>
@@ -393,7 +394,7 @@ function TopNav({ tab, go, cartCount, onCart, user, onEditAddress }: { tab: Tab;
 function BottomNav({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 h-16 border-t border-soft/30 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden">
-      <div className="mx-auto flex h-full max-w-3xl items-center justify-between px-2">
+      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-2">
         {NAV.map(({ k, label, Icon }) => {
           const on = tab === k;
           return (
@@ -421,26 +422,26 @@ function BottomNav({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
 
 function ListingCard({ l, onClick, onOpenFisher }: { l: Listing; onClick: () => void; onOpenFisher: (fisherName: string) => void }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl bg-surface p-3 transition hover:shadow-md border border-soft/30">
-      <button onClick={onClick} className="flex w-full gap-3 text-left">
-        <Photo jam={l.jam} className="size-24 shrink-0 rounded-xl sm:size-28" />
+    <div className="flex flex-col justify-between rounded-2xl bg-surface p-4 transition hover:shadow-md border border-soft/30">
+      <button onClick={onClick} className="flex w-full gap-4 text-left">
+        <Photo jam={l.jam} className="size-24 shrink-0 rounded-xl sm:size-28 md:size-32" />
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h3 className="truncate font-heading text-lg font-bold text-ink">{l.nama}</h3>
-          <p className="font-heading text-lg font-bold text-brand">{rp(l.harga)}<span className="font-sub text-sm font-medium text-ink/60">/kg</span></p>
+          <h3 className="truncate font-heading text-lg font-bold text-ink md:text-xl">{l.nama}</h3>
+          <p className="font-heading text-lg font-bold text-brand md:text-xl">{rp(l.harga)}<span className="font-sub text-sm font-medium text-ink/60">/kg</span></p>
 
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="gap-1 border-brand bg-white font-sub text-brand"><BadgeCheck size={12} />Terverifikasi foto</Badge>
             <span className="font-sub text-xs text-ink/70">Stok {l.stok} kg</span>
           </div>
           <div className="pt-0.5">
-            <span className="inline-flex items-center gap-1 font-sub text-xs font-semibold text-brand bg-brand/10 px-2 py-0.5 rounded-md">
+            <span className="inline-flex items-center gap-1 font-sub text-xs font-semibold text-brand bg-brand/10 px-2.5 py-0.5 rounded-md">
               Ongkir Rute {rp(l.ongkirFlat)}/kg
             </span>
           </div>
         </div>
       </button>
       
-      <div className="mt-3 border-t border-soft/30 pt-2 flex items-center justify-between">
+      <div className="mt-3 border-t border-soft/30 pt-2.5 flex items-center justify-between">
         <button onClick={() => onOpenFisher(l.nelayan)} className="flex items-center gap-1.5 text-xs font-sub font-bold text-ink hover:text-brand transition">
           <Store size={14} className="text-brand" /> {l.nelayan} ({l.daerah})
         </button>
@@ -465,34 +466,34 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
     .sort((a, b) => (sort === "murah" ? a.harga - b.harga : sort === "mahal" ? b.harga - a.harga : a.id - b.id));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 pb-28 md:pb-10">
-      <h1 className="font-heading text-2xl font-bold text-ink">Halo, {userName}!</h1>
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 pb-28 md:pb-10">
+      <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Halo, {userName}!</h1>
 
-      <section className="rounded-3xl bg-surface p-5 md:p-8">
+      <section className="rounded-3xl bg-surface p-6 md:p-10 shadow-sm border border-soft/40">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="max-w-md font-heading text-2xl font-bold leading-tight text-ink md:text-3xl">Ikan segar, tangkapan nelayan lokal!</h2>
-          <div className="grid size-20 shrink-0 place-items-center rounded-full bg-brand md:size-24">
+          <h2 className="max-w-xl font-heading text-2xl font-bold leading-tight text-ink md:text-4xl">Ikan segar, tangkapan nelayan lokal!</h2>
+          <div className="grid size-20 shrink-0 place-items-center rounded-full bg-brand md:size-28 shadow-md">
             <svg viewBox="0 0 60 40" className="w-3/5" fill="white"><ellipse cx="26" cy="20" rx="20" ry="12" /><path d="M44 20 L58 8 L58 32 Z" /><circle cx="14" cy="17" r="2.5" className="fill-brand" /></svg>
           </div>
         </div>
-        <div className="relative mt-5 max-w-xl">
+        <div className="relative mt-6 max-w-2xl">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-soft" />
+              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-soft" />
               <Input 
                 value={q} 
                 onChange={(e) => setQ(e.target.value)} 
                 onFocus={() => setFocus(true)} 
                 onBlur={() => setTimeout(() => setFocus(false), 150)} 
                 placeholder="Cari ikan, nama nelayan, atau daerah..." 
-                className="h-12 rounded-xl border border-soft/80 bg-white pl-10 pr-9 text-ink shadow-sm placeholder:text-soft" 
+                className="h-12 rounded-2xl border border-soft/80 bg-white pl-11 pr-9 text-ink shadow-sm placeholder:text-soft focus:border-brand" 
               />
-              {q && <button onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-soft" aria-label="Hapus pencarian"><X size={18} /></button>}
+              {q && <button onClick={() => setQ("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-soft" aria-label="Hapus pencarian"><X size={18} /></button>}
             </div>
-            <Button className="h-12 rounded-xl bg-brand px-6 font-sub text-base font-semibold text-white hover:bg-brand/90">Cari</Button>
+            <Button className="h-12 rounded-2xl bg-brand px-8 font-sub text-base font-semibold text-white hover:bg-brand/90 shadow-sm">Cari</Button>
           </div>
           {focus && sugg.length > 0 && (
-            <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-soft/40 bg-white shadow-lg">
+            <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-soft/40 bg-white shadow-xl">
               {sugg.map((s) => (
                 <li key={s.id}>
                   <button onMouseDown={() => setQ(s.nama)} className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-surface">
@@ -511,16 +512,16 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {KATEGORI.map((k) => (
-          <button key={k} onClick={() => setKat(k)} className={`shrink-0 rounded-full border px-5 py-2 font-sub text-sm font-semibold transition-colors ${kat === k ? "border-brand bg-brand text-white" : "border-soft bg-white text-ink hover:bg-surface"}`}>{k}</button>
+          <button key={k} onClick={() => setKat(k)} className={`shrink-0 rounded-full border px-5 py-2 font-sub text-sm font-semibold transition-colors ${kat === k ? "border-brand bg-brand text-white shadow-sm" : "border-soft bg-white text-ink hover:bg-surface"}`}>{k}</button>
         ))}
       </div>
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-heading text-lg font-bold text-ink">{q ? <>Hasil untuk "{q}"</> : "Ikan Segar Hari Ini"}</h2>
-          <span className="font-sub text-sm font-semibold text-brand">{list.length} ikan</span>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-heading text-xl font-bold text-ink">{q ? <>Hasil untuk "{q}"</> : "Ikan Segar Hari Ini"}</h2>
+          <span className="font-sub text-sm font-semibold text-brand">{list.length} ikan ditemukan</span>
         </div>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-4 flex gap-3">
           <CustomSelect
             value={daerah}
             onChange={setDaerah}
@@ -540,8 +541,8 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
           />
         </div>
         {list.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">{list.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
-        ) : <p className="py-10 text-center text-ink/60">Ikan tidak ditemukan.</p>}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{list.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
+        ) : <p className="py-12 text-center text-ink/60">Ikan tidak ditemukan.</p>}
       </section>
     </div>
   );
@@ -558,19 +559,19 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
     : "5.0";
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-5 pb-32 md:pb-10 space-y-6">
-      <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 pb-32 md:pb-10 space-y-6">
+      <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white shadow-sm" aria-label="Kembali"><ChevronLeft /></button>
       
-      <div className="rounded-3xl bg-surface p-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-soft/40">
-        <div className="flex items-center gap-4 text-center md:text-left">
-          <div className="grid size-20 place-items-center rounded-full bg-brand font-heading text-3xl font-bold text-white shadow-md">
+      <div className="rounded-3xl bg-surface p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 border border-soft/40 shadow-sm">
+        <div className="flex items-center gap-5 text-center md:text-left">
+          <div className="grid size-20 md:size-24 place-items-center rounded-full bg-brand font-heading text-3xl md:text-4xl font-bold text-white shadow-md">
             {fisherName.split(" ")[1]?.[0] || "N"}
           </div>
           <div className="space-y-1">
-            <h1 className="font-heading text-2xl font-bold text-ink">{fisherName}</h1>
+            <h1 className="font-heading text-2xl md:text-3xl font-bold text-ink">{fisherName}</h1>
             <p className="flex items-center justify-center md:justify-start gap-1 text-sm text-ink/70"><MapPin size={14} className="text-brand" /> Perairan {sample.daerah} · Rute Terjadwal</p>
             <div className="flex items-center justify-center md:justify-start gap-2 pt-1">
-              <span className="flex items-center gap-1 text-xs font-bold text-brand bg-brand/10 px-2.5 py-0.5 rounded-full">
+              <span className="flex items-center gap-1 text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-full">
                 <Star size={12} className="fill-brand" /> {avgRating} Rating Toko
               </span>
               <span className="text-xs text-ink/60">{fisherListings.length} Produk Ikan Segar · {allReviews.length} Ulasan</span>
@@ -578,16 +579,16 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
           </div>
         </div>
 
-        <Button onClick={onChat} className="h-11 rounded-full bg-brand px-6 font-sub text-sm font-semibold text-white hover:bg-brand/90 transition shadow-sm gap-2">
-          <MessageCircle size={16} /> Chat Nelayan
+        <Button onClick={onChat} className="h-12 rounded-full bg-brand px-8 font-sub text-sm font-semibold text-white hover:bg-brand/90 transition shadow-sm gap-2">
+          <MessageCircle size={18} /> Chat Nelayan
         </Button>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="font-heading text-lg font-bold text-ink">Semua Tangkapan Segar dari {fisherName}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <section className="space-y-4">
+        <h2 className="font-heading text-xl font-bold text-ink">Semua Tangkapan Segar dari {fisherName}</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {fisherListings.map((l) => (
-            <div key={l.id} className="flex flex-col justify-between rounded-2xl bg-surface p-3 transition hover:shadow-md border border-soft/30">
+            <div key={l.id} className="flex flex-col justify-between rounded-2xl bg-surface p-4 transition hover:shadow-md border border-soft/30">
               <button onClick={() => onOpenDetail(l.id)} className="flex w-full gap-3 text-left">
                 <Photo jam={l.jam} className="size-24 shrink-0 rounded-xl sm:size-28" />
                 <div className="min-w-0 flex-1 space-y-1.5">
@@ -604,9 +605,9 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
         </div>
       </section>
 
-      <section className="space-y-3 pt-4 border-t border-soft/40">
-        <h2 className="font-heading text-lg font-bold text-ink">Ulasan Pembeli Toko ({allReviews.length})</h2>
-        <div className="grid gap-3">
+      <section className="space-y-4 pt-6 border-t border-soft/40">
+        <h2 className="font-heading text-xl font-bold text-ink">Ulasan Pembeli Toko ({allReviews.length})</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {allReviews.map((rev, idx) => (
             <div key={idx} className="rounded-2xl bg-surface p-4 space-y-2 border border-soft/30">
               <div className="flex items-center justify-between">
@@ -635,48 +636,48 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
   const ongkirEstimasi = calculateTotalOngkir(l.ongkirFlat, qty);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-5 pb-32 md:pb-10">
-      <button onClick={onBack} className="mb-4 grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
-      <div className="grid gap-6 md:grid-cols-2">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 pb-32 md:pb-10">
+      <button onClick={onBack} className="mb-6 grid size-10 place-items-center rounded-full bg-brand text-white shadow-sm" aria-label="Kembali"><ChevronLeft /></button>
+      <div className="grid gap-8 lg:grid-cols-2">
         
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-b from-[#0B6E99] to-[#064663]">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gradient-to-b from-[#0B6E99] to-[#064663] shadow-md">
           <Photo jam={l.jam} className="absolute inset-0 size-full" />
-          <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 font-sub text-xs font-semibold text-brand shadow-md backdrop-blur">
-            <BadgeCheck size={14} /> Terverifikasi foto
+          <span className="absolute bottom-4 left-4 flex items-center gap-1 rounded-full bg-white/90 px-3.5 py-1.5 font-sub text-xs font-semibold text-brand shadow-md backdrop-blur">
+            <BadgeCheck size={16} /> Terverifikasi foto
           </span>
-          <span className="absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white shadow-md">
+          <span className="absolute bottom-4 right-4 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white shadow-md">
             1/3
           </span>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <h1 className="font-heading text-2xl font-bold text-ink">{l.nama}</h1>
+              <h1 className="font-heading text-3xl font-bold text-ink">{l.nama}</h1>
               <div className="flex items-center gap-2">
                 <Badge className="bg-brand font-sub text-white">Min. {l.min} kg</Badge>
                 <Badge className="bg-brand font-sub text-white">Stok {l.stok} kg</Badge>
               </div>
-              <p className="font-heading text-2xl font-bold text-brand">{rp(l.harga)}<span className="font-sub text-base font-medium text-ink/60">/kg</span></p>
+              <p className="font-heading text-3xl font-bold text-brand">{rp(l.harga)}<span className="font-sub text-base font-medium text-ink/60">/kg</span></p>
             </div>
-            <button onClick={onFav} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Simpan ke favorit" aria-pressed={fav}><Star size={18} className={fav ? "fill-white" : ""} /></button>
+            <button onClick={onFav} className="grid size-12 place-items-center rounded-full bg-brand text-white shadow-md transition hover:scale-105" aria-label="Simpan ke favorit" aria-pressed={fav}><Star size={20} className={fav ? "fill-white" : ""} /></button>
           </div>
 
-          <div className="rounded-2xl border border-soft/80 bg-surface p-4 space-y-3">
-            <h3 className="font-sub text-base font-bold text-ink flex items-center gap-1.5">
+          <div className="rounded-2xl border border-soft/80 bg-surface p-5 space-y-4">
+            <h3 className="font-sub text-base font-bold text-ink flex items-center gap-2">
               <MapPin size={18} className="text-brand" /> Pengiriman Rute {l.daerah} – Bandung
             </h3>
             
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-white p-3 border border-soft/60">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-2xl bg-white p-4 border border-soft/60 shadow-sm">
                 <p className="text-xs text-ink/70">Estimasi Ongkir ({qty} kg)</p>
-                <p className="font-heading text-lg font-bold text-brand">{rp(ongkirEstimasi)}</p>
-                {qty > 1 && <p className="text-[10px] text-brand/80 font-medium">Diskon volume aktif</p>}
+                <p className="font-heading text-xl font-bold text-brand">{rp(ongkirEstimasi)}</p>
+                {qty > 1 && <p className="text-[11px] text-brand/80 font-semibold">Diskon volume aktif</p>}
               </div>
-              <div className="rounded-xl bg-white p-3 border border-soft/60">
+              <div className="rounded-2xl bg-white p-4 border border-soft/60 shadow-sm">
                 <p className="text-xs text-ink/70">Kirim ke Rumah</p>
-                <p className="font-heading text-sm font-bold text-ink">{l.jamAntarRumah}</p>
-                <p className="text-[10px] text-ink/60 mt-0.5">Tiba Hub: {l.jamTibaHub}</p>
+                <p className="font-heading text-base font-bold text-ink">{l.jamAntarRumah}</p>
+                <p className="text-[11px] text-ink/60 mt-0.5">Tiba Hub: {l.jamTibaHub}</p>
               </div>
             </div>
 
@@ -686,46 +687,46 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl bg-surface p-3 border border-soft/60">
-            <span className="font-sub font-semibold text-ink text-sm">Atur Jumlah</span>
-            <div className="flex h-10 items-center gap-4 rounded-lg bg-white px-3 text-brand border border-soft/80 shadow-sm">
+          <div className="flex items-center justify-between rounded-2xl bg-surface p-4 border border-soft/60">
+            <span className="font-sub font-semibold text-ink text-base">Atur Jumlah Pembelian</span>
+            <div className="flex h-11 items-center gap-4 rounded-xl bg-white px-4 text-brand border border-soft/80 shadow-sm">
               <button onClick={() => setQty(Math.max(l.min, qty - 1))} aria-label="Kurang"><Minus size={16} /></button>
-              <span className="font-heading text-base font-bold text-ink">{qty} <span className="text-xs font-normal text-ink/60">kg</span></span>
+              <span className="font-heading text-lg font-bold text-ink">{qty} <span className="text-xs font-normal text-ink/60">kg</span></span>
               <button onClick={() => setQty(Math.min(l.stok, qty + 1))} aria-label="Tambah"><Plus size={16} /></button>
             </div>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-20 flex gap-2 border-t border-soft/30 bg-white p-3 md:static md:border-0 md:bg-transparent md:p-0 md:pt-2">
-            <Button onClick={() => onAdd(qty, false)} className="h-12 flex-1 rounded-xl border border-brand bg-white text-brand hover:bg-surface font-sub font-semibold flex items-center justify-center gap-2">
-              <ShoppingCart size={18} /> Keranjang
+          <div className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-soft/30 bg-white p-4 md:static md:border-0 md:bg-transparent md:p-0 md:pt-2">
+            <Button onClick={() => onAdd(qty, false)} className="h-13 flex-1 rounded-2xl border-2 border-brand bg-white text-brand hover:bg-surface font-sub font-semibold flex items-center justify-center gap-2 text-base shadow-sm">
+              <ShoppingCart size={20} /> Keranjang
             </Button>
-            <Button onClick={() => onAdd(qty, true)} className="h-12 flex-1 rounded-xl bg-brand text-white hover:bg-brand/90 font-sub font-semibold">
+            <Button onClick={() => onAdd(qty, true)} className="h-13 flex-1 rounded-2xl bg-brand text-white hover:bg-brand/90 font-sub font-semibold text-base shadow-sm">
               Beli Sekarang
             </Button>
           </div>
 
-          <div className="flex items-center gap-3 border-t border-soft/30 pt-4">
-            <button onClick={() => onOpenFisher(l.nelayan)} className="grid size-11 shrink-0 place-items-center rounded-full bg-brand font-sub font-bold text-white hover:opacity-90 transition">
+          <div className="flex items-center gap-4 border-t border-soft/30 pt-5">
+            <button onClick={() => onOpenFisher(l.nelayan)} className="grid size-12 shrink-0 place-items-center rounded-full bg-brand font-sub font-bold text-white hover:opacity-90 transition shadow-sm">
               {l.nelayan.split(" ")[1]?.[0] || "N"}
             </button>
             <div className="min-w-0 flex-1 text-left">
-              <button onClick={() => onOpenFisher(l.nelayan)} className="font-sub font-bold text-ink hover:text-brand transition block truncate">
+              <button onClick={() => onOpenFisher(l.nelayan)} className="font-sub font-bold text-ink hover:text-brand transition block truncate text-base">
                 {l.nelayan} <span className="text-xs font-bold text-brand hover:underline ml-1">Lihat Toko &rsaquo;</span>
               </button>
-              <p className="flex items-center gap-1 text-sm text-ink/60"><MapPin size={13} />{l.daerah}</p>
+              <p className="flex items-center gap-1 text-sm text-ink/60"><MapPin size={14} />{l.daerah}</p>
             </div>
-            <Button onClick={onChat} className="size-11 shrink-0 rounded-full border border-brand bg-white text-brand hover:bg-surface p-0" aria-label="Chat"><MessageCircle size={18} /></Button>
+            <Button onClick={onChat} className="size-12 shrink-0 rounded-full border border-brand bg-white text-brand hover:bg-surface p-0 shadow-sm" aria-label="Chat"><MessageCircle size={20} /></Button>
           </div>
 
           <div>
-            <h3 className="mb-1 font-sub font-bold text-ink">Deskripsi Produk</h3>
+            <h3 className="mb-2 font-sub font-bold text-ink text-lg">Deskripsi Produk</h3>
             <p className="text-ink/80 text-sm leading-relaxed">{l.desc}</p>
           </div>
 
-          <div className="border-t border-soft/40 pt-5 space-y-4">
+          <div className="border-t border-soft/40 pt-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading text-lg font-bold text-ink">Ulasan Pembeli ({l.reviews.length})</h3>
-              <Button onClick={onOpenReview} className="rounded-full bg-brand px-4 py-2 font-sub text-xs font-semibold text-white hover:bg-brand/90 transition shadow-sm">
+              <h3 className="font-heading text-xl font-bold text-ink">Ulasan Pembeli ({l.reviews.length})</h3>
+              <Button onClick={onOpenReview} className="rounded-full bg-brand px-5 py-2 font-sub text-xs font-semibold text-white hover:bg-brand/90 transition shadow-sm">
                 + Tulis Ulasan
               </Button>
             </div>
@@ -746,9 +747,9 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
                   {rev.mediaUrl && (
                     <div className="pt-1">
                       {rev.mediaType === "video" ? (
-                        <video src={rev.mediaUrl} controls className="h-20 w-32 rounded-xl object-cover border border-soft bg-black" />
+                        <video src={rev.mediaUrl} controls className="h-24 w-40 rounded-xl object-cover border border-soft bg-black" />
                       ) : (
-                        <div className="relative size-16 overflow-hidden rounded-xl border border-soft bg-white">
+                        <div className="relative size-20 overflow-hidden rounded-xl border border-soft bg-white">
                           <Image src={rev.mediaUrl} alt="Foto Ulasan" fill className="object-cover" />
                         </div>
                       )}
@@ -925,12 +926,12 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
   const listToDisplay = activeTab === "aktif" ? activeOrders : historyOrders;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 px-4 py-5 pb-28 md:pb-10">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 pb-28 md:pb-10">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold text-ink">Pesanan Saya</h1>
+        <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Pesanan Saya</h1>
       </div>
 
-      <div className="flex border-b border-soft/40">
+      <div className="flex border-b border-soft/40 max-w-md">
         <button
           onClick={() => setActiveTab("aktif")}
           className={`flex-1 pb-3 font-sub text-sm font-bold transition-all border-b-2 ${
@@ -950,8 +951,8 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
       </div>
 
       {listToDisplay.length === 0 ? (
-        <div className="rounded-2xl bg-surface p-10 text-center border border-soft/30">
-          <PackageCheck className="mx-auto mb-3 text-soft" size={44} />
+        <div className="rounded-3xl bg-surface p-12 text-center border border-soft/30 max-w-xl mx-auto">
+          <PackageCheck className="mx-auto mb-3 text-soft" size={48} />
           <p className="mb-4 text-ink/70 font-sub text-sm">
             {activeTab === "aktif" ? "Belum ada pesanan yang berlangsung." : "Belum ada riwayat pesanan selesai."}
           </p>
@@ -965,91 +966,95 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
           )}
         </div>
       ) : (
-        listToDisplay.map((o) => {
-          const isExpanded = expandedOrder === o.no;
-          return (
-            <div key={o.no} className="rounded-2xl bg-surface p-4 space-y-3 border border-soft/40 shadow-sm transition">
-              <div className="flex items-center justify-between border-b border-soft/30 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-sub text-xs font-bold text-ink">{o.no}</span>
-                  {o.bayar && <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-ink/60 border border-soft/60">{o.bayar}</span>}
-                  {o.tanggal && <span className="text-[11px] text-ink/50">· {o.tanggal}</span>}
-                </div>
-                <Badge className={`font-sub ${o.status === "Selesai" ? "bg-emerald-600 text-white" : "bg-brand text-white"}`}>
-                  {o.status}
-                </Badge>
-              </div>
-
-              <div>
-                <p className="font-sub text-base font-bold text-ink leading-snug">{o.itemsSummary}</p>
-                <button 
-                  onClick={() => toggleExpand(o.no)} 
-                  className="mt-1.5 flex items-center gap-1 text-xs font-bold text-brand hover:underline"
-                >
-                  {isExpanded ? "Sembunyikan Rincian ^" : "Lihat Rincian Pesanan v"}
-                </button>
-              </div>
-
-              {isExpanded && (
-                <div className="rounded-xl bg-white p-3 space-y-2 border border-soft/60 text-xs">
-                  <p className="font-bold text-ink border-b border-soft/30 pb-1">Detail Item Tangkapan:</p>
-                  {o.items && o.items.length > 0 ? (
-                    o.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-ink/80">
-                        <span>{item.qty} kg {item.nama} <span className="text-[10px] text-ink/50">({item.nelayan})</span></span>
-                        <span className="font-semibold">{rp(item.harga * item.qty)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-ink/60 italic">{o.itemsSummary}</p>
-                  )}
-                  <div className="border-t border-soft/30 pt-1.5 space-y-1">
-                    <div className="flex justify-between text-ink/70">
-                      <span>Subtotal Ikan</span>
-                      <span>{rp(o.totalIkan)}</span>
-                    </div>
-                    <div className="flex justify-between text-ink/70">
-                      <span>Total Ongkir Rute</span>
-                      <span>{rp(o.totalOngkir)}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between border-t border-soft/30 pt-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {listToDisplay.map((o) => {
+            const isExpanded = expandedOrder === o.no;
+            return (
+              <div key={o.no} className="flex flex-col justify-between rounded-3xl bg-surface p-5 space-y-3 border border-soft/40 shadow-sm transition">
                 <div>
-                  <span className="text-[11px] text-ink/60 block">Total Pembayaran</span>
-                  <b className="font-heading text-lg text-brand">{rp(o.totalIkan + o.totalOngkir)}</b>
+                  <div className="flex items-center justify-between border-b border-soft/30 pb-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-sub text-xs font-bold text-ink">{o.no}</span>
+                      {o.bayar && <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-ink/60 border border-soft/60">{o.bayar}</span>}
+                      {o.tanggal && <span className="text-[11px] text-ink/50">· {o.tanggal}</span>}
+                    </div>
+                    <Badge className={`font-sub ${o.status === "Selesai" ? "bg-emerald-600 text-white" : "bg-brand text-white"}`}>
+                      {o.status}
+                    </Badge>
+                  </div>
+
+                  <div>
+                    <p className="font-sub text-base font-bold text-ink leading-snug">{o.itemsSummary}</p>
+                    <button 
+                      onClick={() => toggleExpand(o.no)} 
+                      className="mt-2 flex items-center gap-1 text-xs font-bold text-brand hover:underline"
+                    >
+                      {isExpanded ? "Sembunyikan Rincian ^" : "Lihat Rincian Pesanan v"}
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-3 rounded-2xl bg-white p-4 space-y-2 border border-soft/60 text-xs">
+                      <p className="font-bold text-ink border-b border-soft/30 pb-1">Detail Item Tangkapan:</p>
+                      {o.items && o.items.length > 0 ? (
+                        o.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-ink/80">
+                            <span>{item.qty} kg {item.nama} <span className="text-[10px] text-ink/50">({item.nelayan})</span></span>
+                            <span className="font-semibold">{rp(item.harga * item.qty)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-ink/60 italic">{o.itemsSummary}</p>
+                      )}
+                      <div className="border-t border-soft/30 pt-2 space-y-1">
+                        <div className="flex justify-between text-ink/70">
+                          <span>Subtotal Ikan</span>
+                          <span>{rp(o.totalIkan)}</span>
+                        </div>
+                        <div className="flex justify-between text-ink/70">
+                          <span>Total Ongkir Rute</span>
+                          <span>{rp(o.totalOngkir)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {o.status !== "Selesai" ? (
-                  <Button 
-                    onClick={() => onDone(o.no)} 
-                    className="rounded-xl bg-brand px-5 py-2.5 font-sub text-xs font-bold text-white hover:bg-brand/90 shadow-sm shrink-0 whitespace-nowrap"
-                  >
-                    Konfirmasi Diterima
-                  </Button>
-                ) : o.ratingPesanan ? (
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="flex items-center gap-1 font-sub text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-xl">
-                      <Star size={13} className="fill-brand" /> Ikan: {o.ratingPesanan}/5
-                    </span>
-                    <span className="text-[10px] text-ink/60 font-semibold">
-                      Toko {o.ratingToko}/5 · Kurir {o.ratingKurir}/5
-                    </span>
+                <div className="flex items-center justify-between border-t border-soft/30 pt-3">
+                  <div>
+                    <span className="text-[11px] text-ink/60 block">Total Pembayaran</span>
+                    <b className="font-heading text-lg text-brand">{rp(o.totalIkan + o.totalOngkir)}</b>
                   </div>
-                ) : (
-                  <Button 
-                    onClick={() => onReview(o.no)} 
-                    className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs font-bold text-brand hover:bg-surface shadow-sm shrink-0 whitespace-nowrap"
-                  >
-                    Beri Ulasan Lengkap
-                  </Button>
-                )}
+
+                  {o.status !== "Selesai" ? (
+                    <Button 
+                      onClick={() => onDone(o.no)} 
+                      className="rounded-xl bg-brand px-5 py-2.5 font-sub text-xs font-bold text-white hover:bg-brand/90 shadow-sm shrink-0 whitespace-nowrap"
+                    >
+                      Konfirmasi Diterima
+                    </Button>
+                  ) : o.ratingPesanan ? (
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="flex items-center gap-1 font-sub text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-xl">
+                        <Star size={13} className="fill-brand" /> Ikan: {o.ratingPesanan}/5
+                      </span>
+                      <span className="text-[10px] text-ink/60 font-semibold">
+                        Toko {o.ratingToko}/5 · Kurir {o.ratingKurir}/5
+                      </span>
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={() => onReview(o.no)} 
+                      className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs font-bold text-brand hover:bg-surface shadow-sm shrink-0 whitespace-nowrap"
+                    >
+                      Beri Ulasan Lengkap
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -1061,19 +1066,21 @@ const initial = (n: string) => n.split(" ")[1]?.[0] || (n ? n[0] : "N");
 
 function ChatList({ fishers, msgs, onOpen }: { fishers: { nama: string; daerah: string }[]; msgs: Record<string, Msg[]>; onOpen: (n: string) => void }) {
   return (
-    <div className="mx-auto max-w-3xl space-y-3 px-4 py-5 pb-28 md:pb-10">
-      <h1 className="font-heading text-2xl font-bold text-ink">Chat Nelayan</h1>
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 pb-28 md:pb-10">
+      <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Chat Nelayan</h1>
       <p className="text-sm text-ink/60">Maksimal 20 pesan per hari per nelayan. Kontak pribadi nelayan tidak ditampilkan.</p>
       
-      {fishers.map((f) => {
-        const arr = msgs[f.nama] ?? [], last = arr[arr.length - 1];
-        return (
-          <button key={f.nama} onClick={() => onOpen(f.nama)} className="flex w-full items-center gap-3 rounded-2xl bg-surface p-3 text-left transition hover:shadow-md">
-            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand font-sub font-bold text-white">{initial(f.nama)}</span>
-            <span className="min-w-0 flex-1"><b className="block font-sub text-ink">{f.nama} · {f.daerah}</b><span className="block truncate text-sm text-ink/60">{last ? last.text : "Mulai percakapan"}</span></span>
-          </button>
-        );
-      })}
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {fishers.map((f) => {
+          const arr = msgs[f.nama] ?? [], last = arr[arr.length - 1];
+          return (
+            <button key={f.nama} onClick={() => onOpen(f.nama)} className="flex w-full items-center gap-4 rounded-2xl bg-surface p-4 text-left transition hover:shadow-md border border-soft/40">
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand font-sub font-bold text-white shadow-sm">{initial(f.nama)}</span>
+              <span className="min-w-0 flex-1"><b className="block font-sub text-ink text-base">{f.nama} · {f.daerah}</b><span className="block truncate text-sm text-ink/60">{last ? last.text : "Mulai percakapan"}</span></span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1089,12 +1096,12 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport, isAdmin 
   const quickList = isAdmin ? QUICK_ADMIN : QUICK_NELAYAN;
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-3xl flex-col relative">
+    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-5xl flex-col relative">
       <div className="flex items-center gap-3 border-b border-soft/30 px-4 py-3 bg-white z-10">
-        <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
-        <span className="grid size-10 place-items-center rounded-full bg-brand font-sub font-bold text-white">{initial(nama)}</span>
+        <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white shadow-sm" aria-label="Kembali"><ChevronLeft /></button>
+        <span className="grid size-10 place-items-center rounded-full bg-brand font-sub font-bold text-white shadow-sm">{initial(nama)}</span>
         <div className="flex-1">
-          <p className="font-sub font-bold text-ink">{nama}</p>
+          <p className="font-sub font-bold text-ink text-base">{nama}</p>
           <p className="text-xs text-ink/60">{isAdmin ? "Customer Service Platform" : `${daerah} · ${used}/20 pesan hari ini`}</p>
         </div>
         
@@ -1120,16 +1127,16 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport, isAdmin 
         </div>
       )}
 
-      <div className="flex-1 space-y-3 overflow-y-auto bg-surface/60 p-4">
+      <div className="flex-1 space-y-3 overflow-y-auto bg-surface/60 p-4 sm:p-6">
         {msgs.length === 0 && (
-          <p className="py-10 text-center text-sm text-ink/60">
+          <p className="py-12 text-center text-sm text-ink/60">
             {isAdmin ? "Silakan sampaikan pertanyaan atau kendala transaksi Anda kepada Admin CS JalaLink." : "Tanyakan stok atau jadwal kirim lewat pesan cepat di bawah."}
           </p>
         )}
         {msgs.map((m, i) => (
           <div key={i} className={`flex flex-col ${m.me ? "items-end" : "items-start"}`}>
-            <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${m.me ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm bg-white text-ink"}`}>
-              <p className="break-words">{m.text}</p>
+            <div className={`max-w-[80%] md:max-w-[65%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${m.me ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm bg-white text-ink"}`}>
+              <p className="break-words leading-relaxed">{m.text}</p>
               <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${m.me ? "text-white/80" : "text-ink/50"}`}>
                 <span>05.30</span>
                 {m.me && <span className="font-bold">v</span>}
@@ -1140,15 +1147,15 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport, isAdmin 
         <div ref={end} />
       </div>
 
-      <div className="space-y-2 border-t border-soft/30 bg-white p-3 z-10">
-        <div className="flex gap-2 overflow-x-auto">
+      <div className="space-y-2.5 border-t border-soft/30 bg-white p-4 z-10">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {quickList.map((c) => (
-            <button key={c} disabled={full} onClick={() => send(c)} className="shrink-0 rounded-full border border-brand bg-white px-3 py-1.5 font-sub text-xs font-semibold text-brand hover:bg-surface disabled:opacity-40">{c}</button>
+            <button key={c} disabled={full} onClick={() => send(c)} className="shrink-0 rounded-full border border-brand bg-white px-4 py-1.5 font-sub text-xs font-semibold text-brand hover:bg-surface disabled:opacity-40">{c}</button>
           ))}
         </div>
         <div className="flex gap-2">
-          <Input value={t} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setT(e.target.value)} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && send(t)} disabled={full} placeholder={full ? "Batas 20 pesan hari ini tercapai" : "Tulis pesan..."} className="h-11 rounded-xl border-soft text-ink placeholder:text-soft" />
-          <Button onClick={() => send(t)} disabled={full} className="size-11 rounded-xl bg-brand text-white hover:bg-brand/90" aria-label="Kirim"><Send size={18} /></Button>
+          <Input value={t} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setT(e.target.value)} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && send(t)} disabled={full} placeholder={full ? "Batas 20 pesan hari ini tercapai" : "Tulis pesan..."} className="h-12 rounded-2xl border border-soft px-4 text-ink placeholder:text-soft focus:border-brand" />
+          <Button onClick={() => send(t)} disabled={full} className="size-12 rounded-2xl bg-brand text-white hover:bg-brand/90 shadow-sm" aria-label="Kirim"><Send size={18} /></Button>
         </div>
       </div>
 
@@ -1187,34 +1194,33 @@ function HelpCenterView({
   }, [searchFaq]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 pb-28 md:pb-10">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 pb-28 md:pb-10">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white" aria-label="Kembali"><ChevronLeft /></button>
+        <button onClick={onBack} className="grid size-10 place-items-center rounded-full bg-brand text-white shadow-sm" aria-label="Kembali"><ChevronLeft /></button>
         <div>
-          <h1 className="font-heading text-2xl font-bold text-ink">Pusat Bantuan & Tiket CS</h1>
+          <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Pusat Bantuan & Tiket CS</h1>
           <p className="text-xs text-ink/60">Temukan jawaban FAQ atau kelola tiket bantuan transaksi Anda</p>
         </div>
       </div>
 
-      {/* SECTION TIKET AKTIF USER */}
-      <div className="rounded-3xl bg-surface border border-soft/40 p-5 space-y-3">
+      <div className="rounded-3xl bg-surface border border-soft/40 p-6 space-y-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-lg font-bold text-ink flex items-center gap-2">
-            <Ticket size={20} className="text-brand" /> Tiket Bantuan Saya ({tickets.length})
+          <h2 className="font-heading text-xl font-bold text-ink flex items-center gap-2">
+            <Ticket size={22} className="text-brand" /> Tiket Bantuan Saya ({tickets.length})
           </h2>
           <Button 
             onClick={() => setIsNewTicketOpen(true)}
-            className="rounded-full bg-brand px-4 py-1.5 font-sub text-xs font-semibold text-white hover:bg-brand/90 transition shadow-sm"
+            className="rounded-full bg-brand px-5 py-2 font-sub text-xs font-semibold text-white hover:bg-brand/90 transition shadow-sm"
           >
             + Buat Tiket Baru
           </Button>
         </div>
 
         {tickets.length > 0 ? (
-          <div className="space-y-2.5">
+          <div className="grid gap-3 md:grid-cols-2">
             {tickets.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-2xl bg-white p-3.5 border border-soft/50 shadow-sm">
-                <div className="space-y-0.5">
+              <div key={t.id} className="flex items-center justify-between rounded-2xl bg-white p-4 border border-soft/50 shadow-sm">
+                <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-md">{t.id}</span>
                     <span className="text-xs font-semibold text-ink/50">{t.tanggal}</span>
@@ -1245,13 +1251,13 @@ function HelpCenterView({
         )}
       </div>
 
-      <div className="relative">
+      <div className="relative max-w-2xl">
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-soft" />
         <Input 
           value={searchFaq} 
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchFaq(e.target.value)} 
           placeholder="Cari kendala, pengiriman, atau pembayaran..." 
-          className="h-12 rounded-2xl border border-soft bg-surface pl-11 pr-4 text-ink placeholder:text-soft shadow-sm"
+          className="h-12 rounded-2xl border border-soft bg-surface pl-11 pr-4 text-ink placeholder:text-soft shadow-sm focus:border-brand"
         />
         {searchFaq && (
           <button onClick={() => setSearchFaq("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-soft">
@@ -1260,34 +1266,36 @@ function HelpCenterView({
         )}
       </div>
 
-      <div className="space-y-3">
-        <h2 className="font-heading text-lg font-bold text-ink">Pertanyaan Sering Diajukan (FAQ)</h2>
+      <div className="space-y-4">
+        <h2 className="font-heading text-xl font-bold text-ink">Pertanyaan Sering Diajukan (FAQ)</h2>
 
         {filteredFaqs.length > 0 ? (
-          filteredFaqs.map((faq) => {
-            const isOpen = openFaqId === faq.id;
-            return (
-              <div key={faq.id} className="rounded-2xl border border-soft/50 bg-white overflow-hidden transition shadow-sm">
-                <button 
-                  onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
-                  className="w-full flex items-center justify-between p-4 text-left font-sub font-semibold text-ink hover:bg-surface/50 transition gap-3"
-                >
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{faq.kategori}</span>
-                    <p className="text-sm font-bold text-ink pt-1">{faq.pertanyaan}</p>
-                  </div>
-                  <ChevronDown size={18} className={`shrink-0 text-soft transition-transform duration-200 ${isOpen ? "rotate-180 text-brand" : ""}`} />
-                </button>
-                {isOpen && (
-                  <div className="px-4 pb-4 pt-1 text-sm text-ink/80 leading-relaxed border-t border-soft/30 bg-surface/30">
-                    {faq.jawaban}
-                  </div>
-                )}
-              </div>
-            );
-          })
+          <div className="grid gap-3 md:grid-cols-2">
+            {filteredFaqs.map((faq) => {
+              const isOpen = openFaqId === faq.id;
+              return (
+                <div key={faq.id} className="rounded-2xl border border-soft/50 bg-white overflow-hidden transition shadow-sm h-fit">
+                  <button 
+                    onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
+                    className="w-full flex items-center justify-between p-4 text-left font-sub font-semibold text-ink hover:bg-surface/50 transition gap-3"
+                  >
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{faq.kategori}</span>
+                      <p className="text-sm font-bold text-ink pt-1">{faq.pertanyaan}</p>
+                    </div>
+                    <ChevronDown size={18} className={`shrink-0 text-soft transition-transform duration-200 ${isOpen ? "rotate-180 text-brand" : ""}`} />
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 pt-1 text-sm text-ink/80 leading-relaxed border-t border-soft/30 bg-surface/30">
+                      {faq.jawaban}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="rounded-2xl bg-surface p-8 text-center space-y-2 border border-soft/40">
+          <div className="rounded-2xl bg-surface p-8 text-center space-y-2 border border-soft/40 max-w-md mx-auto">
             <HelpCircle size={36} className="mx-auto text-soft" />
             <p className="text-ink/70 font-sub text-sm">Jawaban tidak ditemukan untuk "{searchFaq}"</p>
           </div>
@@ -1384,57 +1392,99 @@ function CreateTicketSheet({ onClose, onSubmit }: { onClose: () => void; onSubmi
   );
 }
 
-function AkunView({ user, favs, ordersCount, onOpen, onOpenFisher, onEditProfile, onEditAddress, onHelp }: { user: UserProfile; favs: Listing[]; ordersCount: number; onOpen: (id: number) => void; onOpenFisher: (fisher: string) => void; onEditProfile: () => void; onEditAddress: () => void; onHelp: () => void }) {
-  const row = "flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left font-sub font-semibold text-ink hover:shadow-md transition border border-soft/30";
+function AkunView({ 
+  user, 
+  favs, 
+  onOpen, 
+  onOpenFisher, 
+  onEditProfile, 
+  onEditAddress, 
+  onHelp,
+  onLogout,
+  onDeleteAccount
+}: { 
+  user: UserProfile; 
+  favs: Listing[]; 
+  onOpen: (id: number) => void; 
+  onOpenFisher: (fisher: string) => void; 
+  onEditProfile: () => void; 
+  onEditAddress: () => void; 
+  onHelp: () => void;
+  onLogout: () => void;
+  onDeleteAccount: () => void;
+}) {
+  const row = "flex w-full items-center gap-3.5 rounded-2xl bg-surface p-4 text-left font-sub font-semibold text-ink hover:shadow-md transition border border-soft/30";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 px-4 py-5 pb-28 md:pb-10">
-      <h1 className="font-heading text-2xl font-bold text-ink">Akun</h1>
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 pb-28 md:pb-10">
+      <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Akun Saya</h1>
       
-      <div className="flex items-center gap-4 rounded-2xl bg-surface p-4 border border-soft/40">
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-full bg-brand font-heading text-2xl font-bold text-white grid place-items-center shadow-sm">
-          {user.photoUrl ? (
-            <Image src={user.photoUrl} alt={user.nama} fill className="object-cover" />
-          ) : (
-            user.nama ? user.nama[0].toUpperCase() : "U"
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-heading text-lg font-bold text-ink truncate">{user.nama}</p>
-          <p className="text-sm text-ink/60 truncate">{user.email} · {user.phone}</p>
-        </div>
-        <Button onClick={onEditProfile} className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs text-brand hover:bg-surface shrink-0">
-          Edit Profil
-        </Button>
-      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 rounded-3xl bg-surface p-5 border border-soft/40 shadow-sm">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-full bg-brand font-heading text-2xl font-bold text-white grid place-items-center shadow-md">
+              {user.photoUrl ? (
+                <Image src={user.photoUrl} alt={user.nama} fill className="object-cover" />
+              ) : (
+                user.nama ? user.nama[0].toUpperCase() : "U"
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading text-xl font-bold text-ink truncate">{user.nama}</p>
+              <p className="text-sm text-ink/60 truncate">{user.email} · {user.phone}</p>
+            </div>
+            <Button onClick={onEditProfile} className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs text-brand hover:bg-surface shrink-0 shadow-sm">
+              Edit Profil
+            </Button>
+          </div>
 
-      <div className="flex items-center justify-between rounded-2xl bg-surface p-4 text-sm text-ink border border-soft/40">
-        <div className="flex items-start gap-3 min-w-0 flex-1 pr-2">
-          <MapPin className="text-brand shrink-0 mt-0.5" size={20} />
-          <div className="min-w-0 flex-1 space-y-0.5">
-            <b className="block font-sub text-xs text-ink/60">Alamat Pengiriman Utama</b>
-            <span className="font-bold text-ink block truncate">{user.jalanNo}</span>
-            <span className="text-xs text-ink/70 block truncate">{user.kotaKecamatan}</span>
-            {user.patokan && <span className="text-[11px] text-brand font-semibold block truncate">Patokan: {user.patokan}</span>}
-            <span className="text-[10px] text-ink/50 block font-mono">Pin Lokasi: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
+          <div className="flex items-center justify-between rounded-3xl bg-surface p-5 text-sm text-ink border border-soft/40 shadow-sm">
+            <div className="flex items-start gap-3 min-w-0 flex-1 pr-2">
+              <MapPin className="text-brand shrink-0 mt-0.5" size={20} />
+              <div className="min-w-0 flex-1 space-y-1">
+                <b className="block font-sub text-xs text-ink/60">Alamat Pengiriman Utama</b>
+                <span className="font-bold text-ink block truncate text-base">{user.jalanNo}</span>
+                <span className="text-xs text-ink/70 block truncate">{user.kotaKecamatan}</span>
+                {user.patokan && <span className="text-[11px] text-brand font-semibold block truncate">Patokan: {user.patokan}</span>}
+                <span className="text-[10px] text-ink/50 block font-mono">Pin Lokasi: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
+              </div>
+            </div>
+            <button onClick={onEditAddress} className="font-sub text-xs font-bold text-brand hover:underline shrink-0">
+              Ubah
+            </button>
           </div>
         </div>
-        <button onClick={onEditAddress} className="font-sub text-xs font-bold text-brand hover:underline shrink-0">
-          Ubah
-        </button>
+
+        <div className="space-y-3">
+          <h2 className="font-heading text-lg font-bold text-ink">Pengaturan & Bantuan</h2>
+          <button onClick={onHelp} className={row}>
+            <LifeBuoy size={20} className="text-brand" />
+            <span>Pusat Bantuan & Tiket CS</span>
+          </button>
+          
+          <button onClick={onLogout} className={row}>
+            <LogOut size={20} className="text-brand" />
+            <span>Keluar Akun</span>
+          </button>
+
+          <button 
+            onClick={onDeleteAccount} 
+            className="flex w-full items-center gap-3.5 rounded-2xl bg-red-50 p-4 text-left font-sub font-semibold text-red-600 hover:bg-red-100 hover:shadow-md transition border border-red-200"
+          >
+            <Trash2 size={20} className="text-red-600" />
+            <span>Hapus Akun Permanen</span>
+          </button>
+        </div>
       </div>
 
-      <section>
-        <h2 className="mb-2 font-heading text-lg font-bold text-ink">Ikan Favorit ({favs.length})</h2>
+      <section className="pt-4 border-t border-soft/40">
+        <h2 className="mb-4 font-heading text-xl font-bold text-ink">Ikan Favorit Saya ({favs.length})</h2>
         {favs.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">{favs.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{favs.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
         ) : (
-          <p className="rounded-2xl bg-surface p-6 text-center text-sm text-ink/60 border border-soft/30">Belum ada favorit. Tekan bintang di halaman ikan.</p>
+          <p className="rounded-3xl bg-surface p-8 text-center text-sm text-ink/60 border border-soft/30 max-w-md">Belum ada favorit. Tekan bintang di halaman detail ikan.</p>
         )}
       </section>
-
-      <button onClick={onHelp} className={row}><LifeBuoy size={20} className="text-brand" />Pusat Bantuan & Tiket CS</button>
-      <button className={row}><LogOut size={20} className="text-brand" />Keluar</button>
     </div>
   );
 }
@@ -1810,7 +1860,37 @@ function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productNa
   );
 }
 
+// Modal Konfirmasi Hapus Akun
+function DeleteAccountModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
+        <div className="flex items-center justify-center size-14 rounded-full bg-red-100 text-red-600 mx-auto">
+          <AlertTriangle size={28} />
+        </div>
+        
+        <div className="text-center space-y-1">
+          <h3 className="font-heading text-xl font-bold text-ink">Hapus Akun Permanen?</h3>
+          <p className="text-xs text-ink/70 leading-relaxed">
+            Tindakan ini <b>tidak bisa dibatalkan</b>. Seluruh riwayat pesanan, favorit, dan informasi alamat Anda akan dihapus secara permanen dari platform JalaLink.
+          </p>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button onClick={onClose} className="flex-1 h-11 rounded-xl border border-soft text-ink font-bold hover:bg-surface transition">
+            Batal
+          </Button>
+          <Button onClick={onConfirm} className="flex-1 h-11 rounded-xl bg-red-600 font-bold text-white hover:bg-red-700 transition shadow-sm">
+            Ya, Hapus Akun
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Page() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
   const [listings, setListings] = useState(INIT);
   const [openId, setOpenId] = useState<number | null>(null);
@@ -1833,6 +1913,7 @@ export default function Page() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isEditAddressOpen, setIsEditAddressOpen] = useState(false);
   const [isHelpCenterOpen, setIsHelpCenterOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // TIKET BANTUAN FAQ
   const [helpTickets, setHelpTickets] = useState<HelpTicket[]>([
@@ -1875,6 +1956,23 @@ export default function Page() {
     setIsHelpCenterOpen(false);
     setActiveTicketChatId(null);
     window.scrollTo({ top: 0 }); 
+  };
+
+  // KELUAR -> DIRECT TO LOGIN
+  const handleLogout = () => {
+    flash("Berhasil keluar. Mengalihkan ke halaman login...");
+    setTimeout(() => {
+      router.push("/login");
+    }, 800);
+  };
+
+  // HAPUS AKUN -> CONFIRM -> DIRECT TO LOGIN
+  const handleConfirmDeleteAccount = () => {
+    setIsDeleteModalOpen(false);
+    flash("Akun Anda berhasil dihapus dari sistem.");
+    setTimeout(() => {
+      router.push("/login");
+    }, 1200);
   };
 
   const detail = listings.find((l) => l.id === openId);
@@ -2094,12 +2192,13 @@ export default function Page() {
           <AkunView 
             user={userProfile}
             favs={listings.filter((l) => favs.includes(l.id))} 
-            ordersCount={orders.length} 
             onOpen={(id) => { setTab("home"); setOpenId(id); window.scrollTo({ top: 0 }); }} 
             onOpenFisher={(fisher) => { setTab("home"); setSelectedFisher(fisher); window.scrollTo({ top: 0 }); }}
             onEditProfile={() => setIsEditProfileOpen(true)}
             onEditAddress={() => setIsEditAddressOpen(true)}
             onHelp={() => setIsHelpCenterOpen(true)}
+            onLogout={handleLogout}
+            onDeleteAccount={() => setIsDeleteModalOpen(true)}
           />
         )
       )}
@@ -2125,6 +2224,13 @@ export default function Page() {
             setUserProfile((prev) => ({ ...prev, ...updatedFields }));
             flash("Alamat pengiriman & titik lokasi berhasil diperbarui");
           }} 
+        />
+      )}
+
+      {isDeleteModalOpen && (
+        <DeleteAccountModal 
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleConfirmDeleteAccount}
         />
       )}
 
