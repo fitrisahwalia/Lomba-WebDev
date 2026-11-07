@@ -1344,16 +1344,15 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 }
 
 function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClose: () => void; onSave: (updated: Partial<UserProfile>) => void }) {
-  const [jalanNo, setJalanNo] = useState(user.jalanNo);
-  const [rt, setRt] = useState(user.rt);
-  const [rw, setRw] = useState(user.rw);
-  const [kotaKecamatan, setKotaKecamatan] = useState(user.kotaKecamatan);
+  const [alamatPeta, setAlamatPeta] = useState(user.kotaKecamatan ? `${user.jalanNo}, ${user.kotaKecamatan}` : user.jalanNo);
+  const [detailRumah, setDetailRumah] = useState(user.rt ? `No. ${user.rt}/${user.rw}` : "");
   const [patokan, setPatokan] = useState(user.patokan);
   const [lat, setLat] = useState(user.lat);
   const [lng, setLng] = useState(user.lng);
   const [isLocating, setIsLocating] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
 
+  // Fitur Deteksi Lokasi GPS HP/Browser saat ini
   const handleCurrentLocation = () => {
     setIsLocating(true);
     if (navigator.geolocation) {
@@ -1366,15 +1365,13 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 
           try {
             setLoadingAddress(true);
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${newLat}&lon=${newLng}&format=json`);
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${newLat}&lon=${newLng}&format=json&zoom=18&addressdetails=1`);
             const data = await res.json();
-            const addr = data.address || {};
-            if (addr.road) setJalanNo(addr.road);
-            const kec = addr.district || addr.suburb || "";
-            const kota = addr.city || addr.town || addr.regency || "";
-            if (kec || kota) setKotaKecamatan(`${kec}${kec && kota ? ", " : ""}${kota}`);
+            if (data.display_name) {
+              setAlamatPeta(data.display_name);
+            }
           } catch {
-            // abaikan error jika gagal fetch
+            // abaikan error fetch
           } finally {
             setLoadingAddress(false);
             setIsLocating(false);
@@ -1391,7 +1388,16 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onSave({ jalanNo, rt, rw, kotaKecamatan, patokan, lat, lng });
+    // Simpan data gabungan ke userProfile
+    onSave({ 
+      jalanNo: alamatPeta, 
+      rt: "", 
+      rw: "", 
+      kotaKecamatan: detailRumah ? `(${detailRumah})` : "", 
+      patokan, 
+      lat, 
+      lng 
+    });
     onClose();
   };
 
@@ -1399,20 +1405,21 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
       <form role="dialog" aria-modal="true" onSubmit={handleSubmit} onClick={(e: React.MouseEvent<HTMLFormElement>) => e.stopPropagation()} className="w-full max-w-lg max-h-[90vh] space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl shadow-xl">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-xl font-bold text-ink">Ubah Alamat Pengiriman</h2>
+          <h2 className="font-heading text-xl font-bold text-ink">Ubah Lokasi Pengiriman</h2>
           <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft text-ink" aria-label="Tutup"><X size={18} /></button>
         </div>
 
+        {/* SECTION PETA */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold text-ink">Atur Titik Pin Lokasi (Klik Peta untuk Auto-Fill Teks Alamat)</label>
+            <label className="block text-xs font-bold text-ink">Klik Titik Pin di Peta (Auto-Fill Alamat)</label>
             <button 
               type="button" 
               onClick={handleCurrentLocation} 
               disabled={isLocating}
               className="flex items-center gap-1 font-sub text-xs font-bold text-brand hover:underline"
             >
-              <LocateFixed size={14} /> {isLocating ? "Mencari titik..." : "Lokasi Saat Ini"}
+              <LocateFixed size={14} /> {isLocating ? "Mencari GPS..." : "Gunakan Lokasi HP"}
             </button>
           </div>
 
@@ -1424,80 +1431,57 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
                 setLat(newLat);
                 setLng(newLng);
                 if (addressDetails) {
-                  if (addressDetails.road) setJalanNo(addressDetails.road);
-                  const kec = addressDetails.district || "";
-                  const kota = addressDetails.city || "";
-                  if (kec || kota) setKotaKecamatan(`${kec}${kec && kota ? ", " : ""}${kota}`);
+                  const parts = [addressDetails.road, addressDetails.district, addressDetails.city].filter(Boolean);
+                  if (parts.length > 0) {
+                    setAlamatPeta(parts.join(", "));
+                  }
                 }
               }} 
             />
 
             <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2 py-1 text-[10px] font-mono font-bold text-ink shadow-sm z-10 pointer-events-none">
-              Lat: {lat}, Lng: {lng}
+              Pin: {lat}, {lng}
             </span>
           </div>
-          {loadingAddress && <p className="text-[11px] text-brand font-semibold animate-pulse">Mengambil nama jalan otomatis...</p>}
-          <p className="text-[11px] text-ink/60">Klik titik di peta untuk mengisi kolom nama jalan dan daerah secara otomatis.</p>
+          {loadingAddress && <p className="text-[11px] text-brand font-semibold animate-pulse">Mengambil alamat lengkap dari peta...</p>}
         </div>
 
+        {/* SECTION FORM BARU YANG RINGKAS */}
         <div className="space-y-3 text-xs font-semibold text-ink border-t border-soft/40 pt-3">
           <div>
-            <label className="block mb-1">Nama Jalan, Gedung, atau Nomor Rumah</label>
+            <label className="block mb-1 text-ink/70">Alamat Utama dari Peta (Otomatis)</label>
             <Input 
-              value={jalanNo} 
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setJalanNo(e.target.value)} 
+              value={alamatPeta} 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlamatPeta(e.target.value)} 
               required 
-              placeholder="Jl. Melati No. 12" 
+              placeholder="Klik peta di atas..." 
+              className="h-11 rounded-xl border border-soft bg-surface/50 px-3 text-sm font-medium text-ink focus:bg-white" 
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 text-ink/70">Detail Nomor Rumah / Blok / Gang (Opsional)</label>
+            <Input 
+              value={detailRumah} 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDetailRumah(e.target.value)} 
+              placeholder="Contoh: No. 12B, Gang Gapura Merah, Lantai 2" 
               className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block mb-1">RT</label>
-              <Input 
-                value={rt} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRt(e.target.value)} 
-                placeholder="02" 
-                className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
-              />
-            </div>
-            <div>
-              <label className="block mb-1">RW</label>
-              <Input 
-                value={rw} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRw(e.target.value)} 
-                placeholder="05" 
-                className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block mb-1">Kota & Kecamatan</label>
-              <Input 
-                value={kotaKecamatan} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKotaKecamatan(e.target.value)} 
-                required
-                placeholder="Jatinangor, Sumedang" 
-                className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Patokan / Ciri Bangunan (Kurir)</label>
-              <Input 
-                value={patokan} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPatokan(e.target.value)} 
-                placeholder="Pagar hitam, cat tembok hijau" 
-                className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" 
-              />
-            </div>
+          <div>
+            <label className="block mb-1 text-brand font-bold">Patokan Khusus Kurir (Sangat Membantu)</label>
+            <Input 
+              value={patokan} 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPatokan(e.target.value)} 
+              placeholder="Contoh: Pagar hitam, samping warung madura, cat tembok hijau" 
+              className="h-11 rounded-xl border border-brand/40 bg-brand/5 px-3 text-sm text-ink placeholder:text-soft focus:border-brand" 
+            />
           </div>
         </div>
 
         <Button type="submit" className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90 shadow-sm">
-          Simpan Alamat Baru
+          Simpan Lokasi Ini
         </Button>
       </form>
     </div>

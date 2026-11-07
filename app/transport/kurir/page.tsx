@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Package, MessageCircle, CheckCircle, Check, ChevronDown, LogOut, User, Search, Map, Info, AlertTriangle, X, Navigation, Calendar, Star, Bike, History, LocateFixed } from "lucide-react";
+import { MapPin, Package, MessageCircle, CheckCircle, Check, ChevronDown, LogOut, User, Search, Info, AlertTriangle, X, Navigation, Calendar, Star, Bike, History, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
@@ -41,7 +41,10 @@ type Paket = {
   id: string;
   pembeli: string;
   isi: string;
-  alamat: string;
+  areaAmbil: string;
+  areaAntar: string;
+  alamatLengkap: string;
+  patokan: string;
   jarak: string;
   status: StatusPaket;
   noHp: string;
@@ -51,11 +54,62 @@ type Paket = {
 };
 
 const DATA_AWAL: Paket[] = [
-  { id: "JL-1001-A", pembeli: "Ibu Ani", isi: "2 kg Kakap Merah", alamat: "Jl. Melati No 12 (Masuk Gang Gapura Merah), RT 04/RW 08, Kel. Sukamiskin, Kec. Arcamanik, Kota Bandung, Jawa Barat 40293", jarak: "2.5 km", status: "Di Gudang", noHp: "08123456789", lat: -6.9147, lng: 107.6841 },
-  { id: "JL-1002-B", pembeli: "Bapak Budi", isi: "1 kg Cumi-cumi", alamat: "Perumahan Indah Blok C4 No 10, Jl. Soekarno Hatta No 72, Kel. Batununggal, Kec. Bandung Kidul, Kota Bandung, Jawa Barat 40266", jarak: "4.1 km", status: "Di Gudang", noHp: "08987654321", lat: -6.9532, lng: 107.6298 },
-  { id: "JL-1004-A", pembeli: "Warung Nasi Padang", isi: "5 kg Tongkol Segar", alamat: "Jl. Asia Afrika No 99 (Sebelah Bank BJB), Kel. Braga, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40111", jarak: "1.2 km", status: "Sedang Diantar", noHp: "08111222333", lat: -6.9211, lng: 107.6110 },
-  { id: "JL-1005-C", pembeli: "Restoran Seafood 88", isi: "10 kg Udang Windu", alamat: "Jl. Braga No 15 (Patokan ruko cat putih), Kel. Braga, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40111", jarak: "3.8 km", status: "Selesai", noHp: "08555666777", lat: -6.9175, lng: 107.6092 },
-  { id: "JL-1006-D", pembeli: "Siska Saraswati", isi: "3 kg Ikan Bawal", alamat: "Apartemen Sudirman Tower B, Lantai 12 Unit 1205, Jl. Jend. Sudirman No 86, Kota Bandung, Jawa Barat 40183", jarak: "5.5 km", status: "Di Gudang", noHp: "08777888999", lat: -6.9198, lng: 107.5923 },
+  { 
+    id: "JL-1001-A", 
+    pembeli: "Ibu Ani", 
+    isi: "2 kg Kakap Merah", 
+    areaAmbil: "Hub Jatinangor",
+    areaAntar: "Sukamiskin, Arcamanik",
+    alamatLengkap: "Jl. Melati No 12, Kel. Sukamiskin, Kec. Arcamanik, Kota Bandung", 
+    patokan: "Gang Gapura Merah, pagar hitam cat tembok hijau",
+    jarak: "2.5 km", 
+    status: "Di Gudang", 
+    noHp: "08123456789", 
+    lat: -6.9147, 
+    lng: 107.6841 
+  },
+  { 
+    id: "JL-1002-B", 
+    pembeli: "Bapak Budi", 
+    isi: "1 kg Cumi-cumi", 
+    areaAmbil: "Hub Jatinangor",
+    areaAntar: "Batununggal, Bandung Kidul",
+    alamatLengkap: "Perumahan Indah Blok C4 No 10, Jl. Soekarno Hatta No 72, Kota Bandung", 
+    patokan: "Depan taman komplek, mobil putih parkir di garasi",
+    jarak: "4.1 km", 
+    status: "Di Gudang", 
+    noHp: "08987654321", 
+    lat: -6.9532, 
+    lng: 107.6298 
+  },
+  { 
+    id: "JL-1004-A", 
+    pembeli: "Warung Nasi Padang", 
+    isi: "5 kg Tongkol Segar", 
+    areaAmbil: "Hub Jatinangor",
+    areaAntar: "Braga, Sumur Bandung",
+    alamatLengkap: "Jl. Asia Afrika No 99, Kel. Braga, Kec. Sumur Bandung", 
+    patokan: "Sebelah Bank BJB, spanduk Rumah Makan Padang",
+    jarak: "1.2 km", 
+    status: "Sedang Diantar", 
+    noHp: "08111222333", 
+    lat: -6.9211, 
+    lng: 107.6110 
+  },
+  { 
+    id: "JL-1005-C", 
+    pembeli: "Restoran Seafood 88", 
+    isi: "10 kg Udang Windu", 
+    areaAmbil: "Hub Jatinangor",
+    areaAntar: "Braga, Sumur Bandung",
+    alamatLengkap: "Jl. Braga No 15, Kel. Braga, Kec. Sumur Bandung", 
+    patokan: "Ruko cat putih 3 lantai, samping toko kue",
+    jarak: "3.8 km", 
+    status: "Selesai", 
+    noHp: "08555666777", 
+    lat: -6.9175, 
+    lng: 107.6092 
+  },
 ];
 
 const RIWAYAT_DATA = [
@@ -63,7 +117,6 @@ const RIWAYAT_DATA = [
   { tanggal: "Rabu, 5 November", area: "Bandung Timur", selesai: 22, rating: 4.8 },
   { tanggal: "Selasa, 4 November", area: "Bandung Selatan", selesai: 15, rating: 5.0 },
   { tanggal: "Senin, 3 November", area: "Bandung Barat", selesai: 20, rating: 4.9 },
-  { tanggal: "Minggu, 2 November", area: "Bandung Tengah", selesai: 25, rating: 5.0 },
 ];
 
 const MASALAH_TEMPLATES = [
@@ -101,7 +154,7 @@ export default function KurirDashboard() {
     if (!dialog) return;
     if (dialog.type === "ambil") {
       setPaketList((prev) => prev.map((p) => (p.id === dialog.paketId ? { ...p, status: "Sedang Diantar" } : p)));
-      showToast(`Paket ${dialog.paketId} berhasil diambil dari gudang.`);
+      showToast(`Paket ${dialog.paketId} berhasil diambil dari hub.`);
     } else if (dialog.type === "selesai") {
       setPaketList((prev) => prev.map((p) => (p.id === dialog.paketId ? { ...p, status: "Selesai", masalah: undefined } : p)));
       showToast(`Pesanan ${dialog.paketId} berhasil diselesaikan!`);
@@ -112,7 +165,7 @@ export default function KurirDashboard() {
   const handleLaporkanMasalah = (alasan: string) => {
     if (issueModal) {
       setPaketList((prev) => prev.map((p) => (p.id === issueModal ? { ...p, masalah: alasan } : p)));
-      showToast(`Kendala pada paket ${issueModal} berhasil dilaporkan.`);
+      showToast(`Kendala pada paket ${issueModal} dilaporkan ke sistem.`);
       tutupModalLapor();
     }
   };
@@ -136,7 +189,7 @@ export default function KurirDashboard() {
 
   const filteredPaket = paketList.filter((p) => {
     const matchTab = tabAktif === "Semua" || p.status === tabAktif;
-    const matchSearch = p.pembeli.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = p.pembeli.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()) || p.areaAntar.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
@@ -151,7 +204,7 @@ export default function KurirDashboard() {
           
           <div className="flex items-center gap-4">
             <span className="hidden sm:inline-flex items-center rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-              Kurir Motor (Last Mile)
+              Kurir Last-Mile (Motor)
             </span>
             
             <div className="relative">
@@ -178,7 +231,7 @@ export default function KurirDashboard() {
                     <User size={16} /> Info Akun
                   </button>
                   <div className="my-1 h-px bg-slate-100" />
-                  <button onClick={() => { setIsProfileOpen(false); showToast("Logout berhasil. Mengalihkan..."); }} className="flex w-full items-center gap-2 rounded-xl p-2.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors">
+                  <button onClick={() => { setIsProfileOpen(false); showToast("Logout berhasil."); }} className="flex w-full items-center gap-2 rounded-xl p-2.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors">
                     <LogOut size={16} /> Keluar
                   </button>
                 </div>
@@ -193,7 +246,7 @@ export default function KurirDashboard() {
               onClick={() => setMainTab("beranda")}
               className={`py-4 font-bold text-sm border-b-2 transition-colors ${mainTab === "beranda" ? "border-brand text-brand" : "border-transparent text-slate-500 hover:text-ink"}`}
             >
-              Beranda Tugas
+              Beranda Tugas Pengantaran
             </button>
             <button 
               onClick={() => setMainTab("riwayat")}
@@ -227,7 +280,7 @@ export default function KurirDashboard() {
                 <Search className="absolute left-4 text-slate-400" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Cari nama pembeli atau resi..." 
+                  placeholder="Cari daerah, nama pembeli, atau resi..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full h-full min-h-[4rem] rounded-2xl border border-slate-200 bg-white pl-12 pr-4 font-sub text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all"
@@ -251,7 +304,7 @@ export default function KurirDashboard() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredPaket.map((paket) => (
                 <div key={paket.id} className={`flex flex-col justify-between rounded-3xl bg-white p-5 border shadow-sm transition-all ${paket.masalah ? "border-red-200 bg-red-50/30" : "border-slate-200 hover:border-brand/30"}`}>
                   <div>
@@ -260,30 +313,45 @@ export default function KurirDashboard() {
                         {paket.id}
                       </span>
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                        paket.status === "Selesai" ? "bg-ink text-white" :
+                        paket.status === "Selesai" ? "bg-emerald-600 text-white" :
                         paket.status === "Sedang Diantar" ? "bg-brand text-white" :
-                        "bg-slate-100 text-slate-600"
+                        "bg-amber-500 text-white"
                       }`}>
                         {paket.status}
                       </span>
+                    </div>
+
+                    {/* ROUTE INFORMASI AMBIL -> TUJUAN */}
+                    <div className="rounded-2xl bg-slate-100/80 p-3 mb-4 space-y-1.5 border border-slate-200/60">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                        <span className="size-2 rounded-full bg-amber-500 shrink-0" />
+                        <span>Ambil: <b className="text-ink">{paket.areaAmbil}</b></span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-brand pl-0.5">
+                        <ArrowRight size={14} className="shrink-0" />
+                        <span>Tujuan: <b className="text-brand">{paket.areaAntar}</b></span>
+                      </div>
                     </div>
                     
                     <h3 className="font-heading text-lg font-bold text-ink mb-1">{paket.pembeli}</h3>
                     
                     {paket.masalah && (
-                      <div className="mt-2 mb-1 inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-2.5 py-1.5 text-xs font-bold text-red-700">
+                      <div className="mt-1 mb-2 inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-2.5 py-1.5 text-xs font-bold text-red-700">
                         <AlertTriangle size={14} /> Kendala: {paket.masalah}
                       </div>
                     )}
 
-                    <div className="space-y-3 mt-4">
-                      <div className="flex items-start gap-2 text-sm font-semibold text-slate-600">
+                    <div className="space-y-3 mt-3 text-xs font-semibold text-slate-600">
+                      <div className="flex items-start gap-2">
                         <Package size={16} className="text-brand shrink-0 mt-0.5" />
-                        <span>{paket.isi}</span>
+                        <span className="text-sm font-bold text-ink">{paket.isi}</span>
                       </div>
-                      <div className="flex items-start gap-2 text-sm font-semibold text-slate-600">
+                      <div className="flex items-start gap-2">
                         <MapPin size={16} className="text-red-500 shrink-0 mt-0.5" />
-                        <span className="leading-relaxed text-slate-700">{paket.alamat} <br/><span className="text-xs font-bold text-slate-400 block mt-1">{paket.jarak} dari lokasi Anda</span></span>
+                        <div>
+                          <p className="leading-relaxed text-slate-800">{paket.alamatLengkap}</p>
+                          <span className="text-[11px] font-bold text-brand block mt-1">Patokan: {paket.patokan}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -294,7 +362,7 @@ export default function KurirDashboard() {
                         onClick={() => setDialog({ type: "ambil", paketId: paket.id })}
                         className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white transition-transform active:scale-95 hover:bg-brand/90"
                       >
-                        <Package size={18} /> Ambil dari Gudang
+                        <Package size={18} /> Ambil Paket dari Hub
                       </button>
                     )}
 
@@ -303,24 +371,24 @@ export default function KurirDashboard() {
                         <div className="flex gap-2">
                           <button 
                             onClick={() => setMapModal(paket)}
-                            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-bold text-ink hover:bg-slate-50 transition-all"
+                            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-ink hover:bg-slate-50 transition-all"
                           >
-                            <MapPin size={16} className="text-red-500" /> Cek Titik
+                            <MapPin size={15} className="text-red-500" /> Cek Titik
                           </button>
                           
                           <button 
                             onClick={() => handleBukaWA(paket.pembeli, paket.noHp)}
-                            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-bold text-ink hover:bg-slate-50 transition-all"
+                            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-ink hover:bg-slate-50 transition-all"
                           >
-                            <MessageCircle size={16} className="text-brand" /> Chat
+                            <MessageCircle size={15} className="text-brand" /> Chat Buyer
                           </button>
                         </div>
                         
                         <button 
                           onClick={() => setDialog({ type: "selesai", paketId: paket.id })}
-                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-sm font-bold text-white transition-transform active:scale-95 hover:bg-ink/90 mt-1"
+                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white transition-transform active:scale-95 hover:bg-black mt-1"
                         >
-                          <Check size={16} /> Selesaikan Pesanan
+                          <Check size={16} /> Konfirmasi Terkirim
                         </button>
 
                         {paket.masalah ? (
@@ -335,26 +403,20 @@ export default function KurirDashboard() {
                             onClick={() => setIssueModal(paket.id)}
                             className="w-full flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold text-slate-500 hover:text-ink hover:bg-slate-100 transition-colors mt-1"
                           >
-                            <AlertTriangle size={14} /> Lapor Kendala
+                            <AlertTriangle size={14} /> Laporkan Kendala
                           </button>
                         )}
                       </div>
                     )}
 
                     {paket.status === "Selesai" && (
-                      <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand/5 border border-brand/20 py-3 text-sm font-bold text-brand">
-                        <CheckCircle size={18} /> Terkirim ke Pembeli
+                      <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 py-3 text-sm font-bold text-emerald-700">
+                        <CheckCircle size={18} /> Sukses Diterima Pembeli
                       </div>
                     )}
                   </div>
                 </div>
               ))}
-              
-              {filteredPaket.length === 0 && (
-                <div className="col-span-full py-12 text-center text-slate-500 font-semibold">
-                  Tidak ada paket yang sesuai dengan pencarian atau filter.
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -397,83 +459,28 @@ export default function KurirDashboard() {
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
-                      <span className="bg-ink text-white px-3 py-1.5 rounded-xl text-sm font-bold shadow-sm">
+                      <span className="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-sm font-bold shadow-sm">
                         {item.selesai} Selesai
-                      </span>
-                      <span className="text-xs font-bold text-brand flex items-center gap-1">
-                        <Star size={12} className="fill-brand" /> Rating {item.rating}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-            
-            <div className="mt-6 text-center">
-              <button 
-                onClick={() => showToast("Memuat data bulan sebelumnya...")}
-                className="rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
-              >
-                Muat Lebih Banyak
-              </button>
-            </div>
           </div>
         )}
 
       </main>
 
-      {/* Modal Info Akun */}
-      {infoAkunModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-            <div className="bg-brand/10 p-6 flex flex-col items-center justify-center relative">
-              <button onClick={() => setInfoAkunModal(false)} className="absolute top-4 right-4 rounded-full p-2 bg-white/50 hover:bg-white text-slate-600 transition">
-                <X size={18} />
-              </button>
-              <div className="h-20 w-20 rounded-full bg-brand text-white flex items-center justify-center mb-3 shadow-md">
-                <User size={36} />
-              </div>
-              <h3 className="font-heading text-xl font-bold text-ink">Agus Setiawan</h3>
-              <p className="text-sm font-bold text-brand mt-1">ID: KRR-9921</p>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 text-sm">
-                <Bike className="text-slate-400 shrink-0" size={20} />
-                <div>
-                  <p className="font-bold text-ink">Honda Vario 125</p>
-                  <p className="text-slate-500 font-medium">Plat: D 1234 ABC</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <div>
-                  <p className="font-bold text-ink">Area Utama</p>
-                  <p className="text-slate-500 font-medium">Bandung Tengah & Timur</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Calendar className="text-slate-400 shrink-0" size={20} />
-                <div>
-                  <p className="font-bold text-ink">Bergabung Sejak</p>
-                  <p className="text-slate-500 font-medium">12 Januari 2023</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 border-t border-slate-100">
-              <button onClick={() => setInfoAkunModal(false)} className="w-full rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Tutup</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Cek Titik Lokasi (Leaflet MapPicker) */}
+      {/* Modal Detail Titik Lokasi Peta (Leaflet MapPicker) */}
       {mapModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div>
                 <h3 className="font-heading text-lg font-bold text-ink flex items-center gap-2">
                   <MapPin size={20} className="text-red-500" />
-                  Titik Lokasi Buyer
+                  Titik Lokasi Pembeli
                 </h3>
                 <p className="text-xs font-semibold text-slate-500 mt-1">{mapModal.pembeli} ({mapModal.id})</p>
               </div>
@@ -494,13 +501,20 @@ export default function KurirDashboard() {
                 }} 
               />
               <span className="absolute bottom-2 left-2 rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-mono font-bold text-ink shadow-sm z-10 pointer-events-none">
-                Pin: {mapModal.lat.toFixed(4)}, {mapModal.lng.toFixed(4)}
+                Pin GPS: {mapModal.lat.toFixed(4)}, {mapModal.lng.toFixed(4)}
               </span>
             </div>
 
-            <div className="p-5 bg-white">
-              <p className="text-sm font-semibold text-slate-700 mb-4 line-clamp-2">{mapModal.alamat}</p>
-              <div className="flex gap-3">
+            <div className="p-5 bg-white space-y-3">
+              <div>
+                <p className="text-xs font-bold text-slate-400">Alamat Lengkap:</p>
+                <p className="text-sm font-semibold text-slate-800">{mapModal.alamatLengkap}</p>
+              </div>
+              <div className="rounded-xl bg-brand/10 p-3 text-xs font-bold text-brand">
+                Patokan Rumah: {mapModal.patokan}
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <button 
                   onClick={() => setMapModal(null)}
                   className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
@@ -513,7 +527,7 @@ export default function KurirDashboard() {
                   }}
                   className="flex-1 flex justify-center items-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white hover:bg-brand/90 transition shadow-sm"
                 >
-                  <Navigation size={16} /> Rute Navigasi
+                  <Navigation size={16} /> Buka Google Maps
                 </button>
               </div>
             </div>
@@ -523,7 +537,7 @@ export default function KurirDashboard() {
 
       {/* Modal Lapor Kendala */}
       {issueModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-heading text-xl font-bold text-ink">Laporkan Kendala</h3>
@@ -532,7 +546,7 @@ export default function KurirDashboard() {
             
             {!showCustomIssue ? (
               <>
-                <p className="mb-4 text-sm font-semibold text-slate-600">Pilih masalah pengantaran untuk <span className="text-brand font-bold">{issueModal}</span>:</p>
+                <p className="mb-4 text-sm font-semibold text-slate-600">Pilih masalah untuk <span className="text-brand font-bold">{issueModal}</span>:</p>
                 <div className="space-y-2.5">
                   {MASALAH_TEMPLATES.map((alasan) => (
                     <button 
@@ -547,18 +561,18 @@ export default function KurirDashboard() {
               </>
             ) : (
               <div className="space-y-4">
-                <p className="text-sm font-semibold text-slate-600">Tuliskan detail masalah untuk <span className="text-brand font-bold">{issueModal}</span>:</p>
+                <p className="text-sm font-semibold text-slate-600">Detail kendala pengantaran <span className="text-brand font-bold">{issueModal}</span>:</p>
                 <textarea 
                   autoFocus 
                   className="w-full resize-none rounded-2xl border border-slate-200 p-4 font-sub text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all" 
                   rows={4} 
-                  placeholder="Contoh: Ban motor bocor, cuaca sangat buruk..." 
+                  placeholder="Contoh: Pembeli minta diantar sore..." 
                   value={customIssueText} 
                   onChange={(e) => setCustomIssueText(e.target.value)} 
                 />
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => setShowCustomIssue(false)} className="h-12 flex-1 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 hover:bg-slate-50 transition-colors">Kembali</button>
-                  <button disabled={!customIssueText.trim()} onClick={() => handleLaporkanMasalah(customIssueText.trim())} className="h-12 flex-1 rounded-xl bg-brand font-bold text-white disabled:bg-slate-300 transition-colors">Kirim Laporan</button>
+                  <button disabled={!customIssueText.trim()} onClick={() => handleLaporkanMasalah(customIssueText.trim())} className="h-12 flex-1 rounded-xl bg-brand font-bold text-white disabled:bg-slate-300 transition-colors">Kirim</button>
                 </div>
               </div>
             )}
@@ -566,36 +580,36 @@ export default function KurirDashboard() {
         </div>
       )}
 
-      {/* Modal Konfirmasi Biasa */}
+      {/* Modal Dialog Konfirmasi */}
       {dialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading text-lg font-bold text-ink">
-                {dialog.type === "ambil" && "Ambil Paket"}
-                {dialog.type === "selesai" && "Selesaikan Pesanan"}
+                {dialog.type === "ambil" && "Ambil Paket Hub"}
+                {dialog.type === "selesai" && "Konfirmasi Pesanan Selesai"}
               </h3>
               <button onClick={() => setDialog(null)} className="rounded-full p-1 hover:bg-slate-100 text-slate-500 transition"><X size={20} /></button>
             </div>
             
             <p className="text-sm font-medium text-slate-600 mb-6">
-              {dialog.type === "ambil" && `Apakah Anda yakin ingin mengambil paket ${dialog.paketId} dari gudang? Pastikan fisik barang sudah di tangan Anda.`}
-              {dialog.type === "selesai" && `Apakah pesanan ${dialog.paketId} sudah berhasil diserahkan ke pembeli? Tindakan ini tidak bisa dibatalkan.`}
+              {dialog.type === "ambil" && `Apakah Anda telah mengambil fisik paket ${dialog.paketId} dari Hub Jatinangor?`}
+              {dialog.type === "selesai" && `Apakah paket ${dialog.paketId} telah diserahkan langsung ke tangan pembeli?`}
             </p>
 
             <div className="flex gap-3">
               <button onClick={() => setDialog(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Batal</button>
-              <button onClick={handleKonfirmasi} className={`flex-1 rounded-xl py-2.5 text-sm font-bold text-white transition-transform active:scale-95 ${dialog.type === "ambil" ? "bg-brand hover:bg-brand/90" : "bg-ink hover:bg-ink/90"}`}>
-                Ya, Lanjutkan
+              <button onClick={handleKonfirmasi} className={`flex-1 rounded-xl py-2.5 text-sm font-bold text-white transition-transform active:scale-95 ${dialog.type === "ambil" ? "bg-brand hover:bg-brand/90" : "bg-slate-900 hover:bg-black"}`}>
+                Ya, Konfirmasi
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast Notifikasi */}
+      {/* Toast */}
       {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white shadow-xl animate-in slide-in-from-bottom-5 fade-in duration-300">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-xl animate-in slide-in-from-bottom-5 fade-in duration-300">
           <Info size={18} className="text-brand" />
           {toastMsg}
         </div>
