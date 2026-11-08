@@ -35,14 +35,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    let filteredData = listings;
+    let filteredData = listings || [];
     if (ikan && listings) {
       filteredData = listings.filter((item: any) =>
         item.ikan?.nama_baku.toLowerCase().includes(ikan.toLowerCase())
       );
     }
 
-    return NextResponse.json({ data: filteredData });
+    // ✅ DIPERBAIKI: Langsung kembalikan filteredData (array) agar dibaca sempurna oleh frontend
+    return NextResponse.json(filteredData);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

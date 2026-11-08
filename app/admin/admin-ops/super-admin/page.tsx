@@ -15,6 +15,13 @@ import {
   Lock,
   X,
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// Inisialisasi Supabase Client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
+);
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const ongkir = (flat: number, kg: number) =>
@@ -54,7 +61,7 @@ const Pill = ({
 type Tab = "ringkasan" | "tarif" | "transport" | "tpi";
 
 type TarifRute = {
-  id: number;
+  id: number | string;
   rute: string;
   aktif: number;
   tarifNormalMin: number;
@@ -67,7 +74,7 @@ type TarifRute = {
 };
 
 type MitraKerjasama = {
-  id: number;
+  id: number | string;
   namaPT: string;
   penanggungJawab: string;
   armadaCount: number;
@@ -81,7 +88,7 @@ type MitraKerjasama = {
 };
 
 type TPIData = {
-  id: number;
+  id: number | string;
   namaTPI: string;
   wilayah: string;
   kapasitasHarian: string;
@@ -89,6 +96,7 @@ type TPIData = {
   statusHub: "Utama" | "Pengumpan";
 };
 
+// Data fallback jika Supabase belum ada isinya
 const TARIF0: TarifRute[] = [
   { id: 1, rute: "Cilacap → Bandung", aktif: 8000, tarifNormalMin: 7500, tarifNormalMax: 9000 },
   { id: 2, rute: "Pangandaran → Bandung", aktif: 8000, tarifNormalMin: 7500, tarifNormalMax: 9500, usulan: 12000, pengaju: "CV Bahari Cold Chain", statusUsulan: "Menunggu" },
@@ -116,7 +124,7 @@ const DUMMY_MITRA: MitraKerjasama[] = [
     armadaCount: 12,
     jenisTransport: "Motorized Cool Box",
     dokumenUsia: "NIB_9120839102.pdf",
-    suratIzinUsaha: "Izin_Operasional_Dinas_Perhubungan.pdf",
+    suratIzinUsaha: "Izin_Operasional_Dinas_Perhitungan.pdf",
     sertifikatColdStorage: "Sertifikat_Suhu_Pengangkut.pdf",
     polisAsuransi: "Asuransi_Barang_Transit.pdf",
     status: "Menunggu Peninjauan",
@@ -150,7 +158,7 @@ export default function SuperAdminPage() {
 
   const [tarif, setTarif] = useState<TarifRute[]>(TARIF0);
   const [mitraList, setMitraList] = useState<MitraKerjasama[]>(DUMMY_MITRA);
-  const [tpiList] = useState<TPIData[]>(DUMMY_TPI);
+  const [tpiList, setTpiList] = useState<TPIData[]>(DUMMY_TPI);
 
   // KATA SANDI PROTEKSI BUKA KUNCI EDIT MARGIN
   const [kunci, setKunci] = useState(true);
@@ -176,6 +184,14 @@ export default function SuperAdminPage() {
     browser: "Mendeteksi browser...",
     ip: "Mendeteksi IP...",
   });
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState("");
+
+  const flash = (m: string) => {
+    setToast(m);
+    setTimeout(() => setToast(""), 4000);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -212,13 +228,54 @@ export default function SuperAdminPage() {
     }
   }, []);
 
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [toast, setToast] = useState("");
+  // --- INTEGRASI LIVE FETCH DARI SUPABASE DATABASE ---
+  useEffect(() => {
+    async function fetchSuperAdminLive() {
+      try {
+        // 1. Fetch Data Rute dari API Supabase (/api/rute)
+        const resRute = await fetch("/api/rute");
+        const dataRute = await resRute.json();
+        const listRute = Array.isArray(dataRute) ? dataRute : (dataRute?.data || []);
 
-  const flash = (m: string) => {
-    setToast(m);
-    setTimeout(() => setToast(""), 4000);
-  };
+        if (listRute.length > 0) {
+          const liveTarif = listRute.map((r: any) => ({
+            id: r.id,
+            rute: `${r.asal?.nama || "TPI"} → ${r.kota_tujuan}`,
+            aktif: r.biaya_rute || 8000,
+            tarifNormalMin: Math.max(5000, (r.biaya_rute || 8000) - 1000),
+            tarifNormalMax: (r.biaya_rute || 8000) + 2000,
+          }));
+          setTarif(liveTarif);
+        }
+
+        // 2. Fetch Profiles Mitra Transport dari Tabel Supabase
+        const { data: profilesTransport } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("role", "admintransport");
+
+        if (profilesTransport && profilesTransport.length > 0) {
+          const liveMitra = profilesTransport.map((p: any, idx: number) => ({
+            id: p.id || idx + 1,
+            namaPT: p.nama || "CV Mitra Transport",
+            penanggungJawab: p.nama || "Penanggung Jawab",
+            armadaCount: 5,
+            jenisTransport: "Cold Truck Refrigerator" as const,
+            dokumenUsia: "NIB_Verified.pdf",
+            suratIzinUsaha: "SIUP_Valid.pdf",
+            sertifikatColdStorage: "ColdStorage_Cert.pdf",
+            polisAsuransi: "Asuransi_Kargo.pdf",
+            status: (p.status || "Aktif Terjalin") as any,
+          }));
+          setMitraList(liveMitra);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data dari Supabase:", err);
+      }
+    }
+
+    fetchSuperAdminLive();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -230,9 +287,9 @@ export default function SuperAdminPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const [detailMitra, setDetailMitra] = useState<number | null>(null);
+  const [detailMitra, setDetailMitra] = useState<number | string | null>(null);
   const [confirmMitra, setConfirmMitra] = useState<{
-    id: number;
+    id: number | string;
     aksi: string;
     targetStatus: "Aktif Terjalin" | "Ditolak";
   } | null>(null);
@@ -255,7 +312,7 @@ export default function SuperAdminPage() {
     flash("Pengaturan margin disimpan");
   };
 
-  const eksekusiMitra = () => {
+  const eksekusiMitra = async () => {
     if (!confirmMitra) return;
     const catatan = alasanKerjasama.trim();
     if (!catatan) {
@@ -263,6 +320,17 @@ export default function SuperAdminPage() {
       return;
     }
 
+    // Update status ke tabel profiles di Supabase
+    try {
+      await supabase
+        .from("profiles")
+        .update({ status: confirmMitra.targetStatus })
+        .eq("id", confirmMitra.id);
+    } catch (e) {
+      console.warn("Peringatan update Supabase:", e);
+    }
+
+    // Update state tampilan lokal
     setMitraList((prev) =>
       prev.map((m) =>
         m.id === confirmMitra.id
