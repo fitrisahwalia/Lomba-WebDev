@@ -187,7 +187,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Authenticate user dengan Supabase
+      // 1. Authenticate user ke Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
@@ -199,21 +199,17 @@ export default function LoginPage() {
         return;
       }
 
-      // 2. Ambil role dari User Metadata terlebih dahulu (paling cepat & RLS-safe)
-      let dbRole = authData.user.user_metadata?.role?.toLowerCase();
+      // 2. Ambil role dari tabel DB profiles terlebih dahulu
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .maybeSingle();
 
-      // 3. Jika metadata kosong, baru query ke database profiles
-      if (!dbRole) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", authData.user.id)
-          .maybeSingle();
+      // 3. Jika DB profiles kosong, baru fallback ke user_metadata
+      const dbRole = profile?.role?.toLowerCase() || authData.user.user_metadata?.role?.toLowerCase() || "pembeli";
 
-        dbRole = profile?.role?.toLowerCase() || "pembeli";
-      }
-
-      // Simpan remember email jika dicentang
+      // 4. Simpan status remember me jika dicentang
       if (remember) {
         localStorage.setItem("jalalink_remember", v);
       } else {
@@ -222,7 +218,7 @@ export default function LoginPage() {
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
 
-      // 4. Redirect sesuai role yang valid
+      // 5. Eksekusi redirect sesuai role
       redirectByRole(dbRole);
 
     } catch (error: any) {
