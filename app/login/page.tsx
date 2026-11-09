@@ -143,34 +143,31 @@ export default function LoginPage() {
   }, []);
 
   const redirectByRole = (targetRole: string) => {
-  let targetPath = "/buyer";
+    let targetPath = "/buyer"; // Default ke buyer jika role tidak cocok
 
-  switch (targetRole) {
-    case "superadmin":
-      targetPath = "/admin/admin-ops/super-admin";
-      break;
-    case "adminops":
-    case "admin":
-      targetPath = "/admin/admin-ops";
-      break;
-    case "admintransport":
-    case "kurir":
-    case "supir":
-      targetPath = "/transport";
-      break;
-    case "nelayan":
-      targetPath = "/nelayan";
-      break;
-    case "pembeli":
-      targetPath = "/buyer";
-      break;
-    default:
-      targetPath = "/buyer";
-      break;
-  }
-
-  window.location.href = targetPath;
-  };
+    switch (targetRole) {
+      case "superadmin":
+        targetPath = "/admin/admin-ops/super-admin";
+        break;
+      case "adminops":
+      case "admin":
+        targetPath = "/admin/admin-ops";
+        break;
+      case "admintransport":
+      case "kurir":
+      case "supir":
+        targetPath = "/transport";
+        break;
+      case "nelayan":
+        targetPath = "/nelayan";
+        break;
+      case "pembeli":
+        targetPath = "/buyer";
+        break;
+      default:
+        targetPath = "/buyer";
+        break;
+    }
 
     // Gunakan window.location.href agar halaman dipaksa pindah & reload penuh
     window.location.href = targetPath;
@@ -190,7 +187,6 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Authenticate user
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
@@ -198,39 +194,28 @@ export default function LoginPage() {
 
       if (authError || !authData.user) {
         setErr({ auth: authError?.message || "Email atau kata sandi salah." });
-        setLoading(false);
+        setLoading(false); // Matikan putaran tombol
         return;
       }
 
-      // 2. Ambil role dari Database Profiles, jika gagal/kosong ambil dari User Metadata
-      let dbRole = authData.user.user_metadata?.role?.toLowerCase();
+      // Ambil data profile role
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .maybeSingle();
 
-      if (!dbRole) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", authData.user.id)
-          .maybeSingle();
-        
-        dbRole = profile?.role?.toLowerCase() || "pembeli";
-      }
-
-      // Simpan remember email jika dicentang
-      if (remember) {
-        localStorage.setItem("jalalink_remember", v);
-      } else {
-        localStorage.removeItem("jalalink_remember");
-      }
+      const dbRole = profile?.role?.toLowerCase() || "pembeli";
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
-
-      // 3. Langsung eksekusi redirect
+      
+      // Langsung redirect
       redirectByRole(dbRole);
 
     } catch (error: any) {
-      console.error("Login Error:", error);
+      console.error(error);
       setErr({ auth: "Gagal memproses login. Silakan coba lagi." });
-      setLoading(false);
+      setLoading(false); // Matikan putaran tombol
     }
   };
   
