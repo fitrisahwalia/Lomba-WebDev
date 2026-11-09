@@ -156,7 +156,7 @@ export default function LoginPage() {
       case "admintransport":
       case "kurir":
       case "supir":
-        targetPath = "/admin/admin-ops/super-admin";
+        targetPath = "/transport/admin_transport";
         break;
       case "nelayan":
         targetPath = "/nelayan";
