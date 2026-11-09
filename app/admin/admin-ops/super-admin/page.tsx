@@ -167,9 +167,10 @@ export default function SuperAdminPage() {
   const [tempP, setTempP] = useState({ ...p });
   const [kgSimulasi, setKgSimulasi] = useState(10);
 
+  // State profil awal
   const [superAdminProfile, setSuperAdminProfile] = useState({
-    nama: "Surya Wijaya",
-    email: "surya.owner@jalalink.id",
+    nama: "Sahwa",
+    email: "sahwa@jalalink.com",
     role: "Super Admin",
     kode: "SUPER-ADM-01",
   });
@@ -192,6 +193,32 @@ export default function SuperAdminPage() {
     setToast(m);
     setTimeout(() => setToast(""), 4000);
   };
+
+  // 🛠️ FIX LOGIKA: AMBIL USER AKTIF DARI SUPABASE AUTH SAAT HALAMAN DIMUAT[cite: 35]
+  useEffect(() => {
+    async function loadUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("nama, role")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          setSuperAdminProfile({
+            nama: profile?.nama || user.user_metadata?.nama || "Sahwa",
+            email: user.email || "sahwa@jalalink.com",
+            role: "Super Admin",
+            kode: "SUPER-ADM-01",
+          });
+        }
+      } catch (err) {
+        console.error("Gagal memuat profil Super Admin:", err);
+      }
+    }
+    loadUserProfile();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -232,7 +259,6 @@ export default function SuperAdminPage() {
   useEffect(() => {
     async function fetchSuperAdminLive() {
       try {
-        // 1. Fetch Data Rute dari API Supabase (/api/rute)
         const resRute = await fetch("/api/rute");
         const dataRute = await resRute.json();
         const listRute = Array.isArray(dataRute) ? dataRute : (dataRute?.data || []);
@@ -248,7 +274,6 @@ export default function SuperAdminPage() {
           setTarif(liveTarif);
         }
 
-        // 2. Fetch Profiles Mitra Transport dari Tabel Supabase
         const { data: profilesTransport } = await supabase
           .from("profiles")
           .select("*")
@@ -320,7 +345,6 @@ export default function SuperAdminPage() {
       return;
     }
 
-    // Update status ke tabel profiles di Supabase
     try {
       await supabase
         .from("profiles")
@@ -330,7 +354,6 @@ export default function SuperAdminPage() {
       console.warn("Peringatan update Supabase:", e);
     }
 
-    // Update state tampilan lokal
     setMitraList((prev) =>
       prev.map((m) =>
         m.id === confirmMitra.id
@@ -388,9 +411,8 @@ export default function SuperAdminPage() {
       <header className="sticky top-0 z-30 border-b border-soft/40 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="JalaLink" width={110} height={36} className="object-contain" />
+            <Image src="/logo.png" alt="JalaLink" width={110} height={36} className="object-contain" priority />
           </div>
-
           <nav className="hidden items-center gap-1 md:flex">
             {NAV.map(([k, l]) => (
               <button
@@ -404,7 +426,6 @@ export default function SuperAdminPage() {
               </button>
             ))}
           </nav>
-
           <div className="relative flex items-center" ref={menuRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -417,7 +438,6 @@ export default function SuperAdminPage() {
                 {superAdminProfile.nama.charAt(0).toUpperCase()}
               </div>
             </button>
-
             {userMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-64 rounded-3xl border border-soft/60 bg-white p-2 shadow-2xl z-50">
                 <div className="border-b border-soft/40 p-3">
@@ -438,7 +458,6 @@ export default function SuperAdminPage() {
                   >
                     <User size={16} /> Profil Staf
                   </button>
-
                   <button
                     onClick={() => {
                       setModalKeamanan(true);
@@ -450,8 +469,12 @@ export default function SuperAdminPage() {
                   </button>
                 </div>
                 <div className="border-t border-soft/40 pt-1">
+                  {/* 🛠️ FIX LOGIKA LOGOUT: TAMBAHKAN SUPABASE SIGNOUT */}
                   <button
-                    onClick={() => router.push("/login")}
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      window.location.href = "/login";
+                    }}
                     className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
                   >
                     <LogOut size={16} /> Keluar
@@ -478,13 +501,15 @@ export default function SuperAdminPage() {
                 Pusat kendali penetapan tarif rute, skema potongan margin, dan persetujuan mitra ekspedisi.
               </p>
             </div>
-
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {[
                 ["Total Rute Aktif", tarif.length],
                 ["Estimasi Transaksi", rp(4850000)],
                 ["Margin JalaLink", rp(Math.round(4850000 * 0.045))],
-                ["Mitra Transport Pending", mitraList.filter((m) => m.status === "Menunggu Peninjauan").length],
+                [
+                  "Mitra Transport Pending",
+                  mitraList.filter((m) => m.status === "Menunggu Peninjauan").length,
+                ],
               ].map(([l, v]) => (
                 <div key={l as string} className="rounded-3xl bg-surface/70 p-5 border border-soft/40">
                   <p className="text-sm font-medium text-ink/60">{l}</p>
@@ -495,7 +520,6 @@ export default function SuperAdminPage() {
           </div>
         )}
 
-        {/* TAB TARIF DAN MARGIN */}
         {tab === "tarif" && (
           <div className="space-y-6">
             <div>
@@ -504,8 +528,6 @@ export default function SuperAdminPage() {
                 Transport mengusulkan tarif baru, Super Admin memberikan persetujuan akhir.
               </p>
             </div>
-
-            {/* TABEL TARIF RUTE */}
             <div className="overflow-hidden rounded-3xl border border-soft/50 bg-white shadow-sm">
               <table className="w-full text-left text-sm border-collapse">
                 <thead>
@@ -553,7 +575,9 @@ export default function SuperAdminPage() {
                             <button
                               onClick={() => {
                                 setTarif((ts) =>
-                                  ts.map((t) => (t.id === r.id ? { ...t, statusUsulan: "Ditolak" } : t))
+                                  ts.map((t) =>
+                                    t.id === r.id ? { ...t, statusUsulan: "Ditolak" } : t
+                                  )
                                 );
                                 flash("Usulan tarif ditolak");
                               }}
@@ -573,13 +597,11 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 pt-2">
-              {/* KARTU PENGATURAN SKEMA MARGIN (UI RAPI & DIKSI KONSISTEN "KATA SANDI") */}
               <div className={`${card} bg-white space-y-4`}>
                 <div className="flex items-center justify-between border-b border-soft/40 pb-3 gap-2">
                   <b className="font-heading text-base text-ink">Skema Potongan Margin Platform</b>
                   <Pill dark={kunci}>{kunci ? "Terkunci" : "Terbuka"}</Pill>
                 </div>
-
                 {kunci ? (
                   <div className="rounded-2xl border border-dashed border-soft/80 bg-surface/50 p-6 text-center space-y-4">
                     <div className="grid size-12 place-items-center rounded-2xl bg-[#0d7a87]/10 text-[#0d7a87] mx-auto">
@@ -605,9 +627,7 @@ export default function SuperAdminPage() {
                 ) : (
                   <div className="space-y-3 text-xs">
                     <div>
-                      <label className="block font-bold text-ink/70 mb-1">
-                        Komisi Nelayan (%) *
-                      </label>
+                      <label className="block font-bold text-ink/70 mb-1">Komisi Nelayan (%) *</label>
                       <input
                         type="number"
                         value={tempP.komisi}
@@ -625,9 +645,7 @@ export default function SuperAdminPage() {
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-ink/70 mb-1">
-                        Biaya Layanan (Rp) *
-                      </label>
+                      <label className="block font-bold text-ink/70 mb-1">Biaya Layanan (Rp)</label>
                       <input
                         type="number"
                         value={tempP.layanan}
@@ -647,7 +665,6 @@ export default function SuperAdminPage() {
                 )}
               </div>
 
-              {/* SIMULASI KALKULATOR HASIL MARGIN */}
               <div className={`${card} bg-white space-y-3 text-sm`}>
                 <div className="flex justify-between items-center border-b border-soft/40 pb-2">
                   <b className="font-heading text-base">Simulasi Margin Bagi Hasil</b>
@@ -662,7 +679,6 @@ export default function SuperAdminPage() {
                     <span className="text-ink/60">kg</span>
                   </div>
                 </div>
-
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span>Harga Tangkapan Ikan</span>
@@ -677,12 +693,10 @@ export default function SuperAdminPage() {
                     <b>{rp(biayaLayanan)}</b>
                   </div>
                 </div>
-
                 <div className="flex justify-between border-t border-soft/40 pt-2 text-ink">
                   <b className="font-sub">Total Pembeli Bayar:</b>
                   <b className="font-heading text-base text-[#0d7a87]">{rp(totalPembeliBayar)}</b>
                 </div>
-
                 <div className="flex h-3 overflow-hidden rounded-full bg-surface">
                   {barSimulasi.map(([l, v, c]) => (
                     <div
@@ -692,7 +706,6 @@ export default function SuperAdminPage() {
                     />
                   ))}
                 </div>
-
                 <div className="space-y-1 text-[11px] pt-1">
                   {barSimulasi.map(([l, v]) => (
                     <div key={l} className="flex justify-between">
@@ -706,7 +719,6 @@ export default function SuperAdminPage() {
           </div>
         )}
 
-        {/* SECTION MITRA TRANSPORTASI */}
         {tab === "transport" && (
           <div className="space-y-4">
             <div>
@@ -715,7 +727,6 @@ export default function SuperAdminPage() {
                 Pemeriksaan berkas legalitas operasional dan armada cold storage calon mitra ekspedisi.
               </p>
             </div>
-
             <div className="grid gap-4 md:grid-cols-2">
               {mitraList.map((m) => (
                 <div key={m.id} className={`${card} bg-white space-y-3`}>
@@ -726,7 +737,6 @@ export default function SuperAdminPage() {
                     </div>
                     <Pill dark={m.status !== "Menunggu Peninjauan"}>{m.status}</Pill>
                   </div>
-
                   <div className="rounded-2xl bg-surface/70 p-3 border border-soft/60 text-xs space-y-1">
                     <p>
                       Kualifikasi Armada: <b>{m.jenisTransport}</b> ({m.armadaCount} Unit)
@@ -735,13 +745,11 @@ export default function SuperAdminPage() {
                       Surat Izin Operasional: <b>{m.suratIzinUsaha}</b>
                     </p>
                   </div>
-
                   {m.keterangan && (
                     <p className="text-xs italic text-ink/70 border-l-2 border-[#0d7a87] pl-2">
                       Catatan Peninjauan: &quot;{m.keterangan}&quot;
                     </p>
                   )}
-
                   <button
                     onClick={() => setDetailMitra(m.id)}
                     className={`${pri} w-full text-xs h-10 flex items-center justify-center gap-2`}
@@ -754,16 +762,14 @@ export default function SuperAdminPage() {
           </div>
         )}
 
-        {/* SECTION DIREKTORI TPI */}
         {tab === "tpi" && (
           <div className="space-y-4">
             <div>
               <h1 className="font-heading text-2xl font-bold">Direktori TPI (Tempat Pelelangan Ikan)</h1>
               <p className="text-sm text-ink/60">
-                Integrasi wilayah TPI pesisir yang terhubung dalam ekosistem pasokan JalaLink.
+                Integrasi wilayah TPI pesisir yang terhubung dalam ekosistem pasokan Jalalink.
               </p>
             </div>
-
             <div className="grid gap-4 md:grid-cols-3">
               {tpiList.map((t) => (
                 <div key={t.id} className={`${card} bg-white space-y-2`}>
@@ -811,12 +817,11 @@ export default function SuperAdminPage() {
                     <div>
                       <p className="font-sub text-lg font-bold">{m.namaPT}</p>
                       <p className="text-xs text-ink/60">
-                        PJ: {m.penanggungJawab} · {m.jenisTransport}
+                        PJ: {m.penanggungJawab} ({m.jenisTransport})
                       </p>
                     </div>
                     <Pill dark={!perluAksi}>{m.status}</Pill>
                   </div>
-
                   <div className="space-y-2 rounded-2xl bg-surface/60 p-4 border border-soft/60 text-xs">
                     <b className="font-bold text-[#0d7a87] uppercase text-[11px] block">
                       Berkas Legalitas Terlampir:
@@ -843,7 +848,6 @@ export default function SuperAdminPage() {
                       ))}
                     </div>
                   </div>
-
                   {perluAksi && (
                     <div className="flex gap-3 pt-3 border-t border-soft/40">
                       <button
@@ -889,11 +893,9 @@ export default function SuperAdminPage() {
               </div>
               <h3 className="font-heading text-lg font-bold">Konfirmasi Keputusan</h3>
             </div>
-
             <p className="text-sm text-ink/70 mb-4">
               Apakah Anda yakin ingin <b>{confirmMitra.aksi.toLowerCase()}</b>?
             </p>
-
             <div className="mb-4 space-y-1.5">
               <label className="text-xs font-bold text-ink/70">Catatan Peninjauan Berkas *</label>
               <textarea
@@ -903,7 +905,6 @@ export default function SuperAdminPage() {
                 placeholder="Tuliskan alasan pertimbangan persetujuan/penolakan..."
               />
             </div>
-
             <div className="flex gap-2 pt-2 border-t border-soft/40">
               <button
                 onClick={() => {
@@ -937,7 +938,6 @@ export default function SuperAdminPage() {
                 <X size={18} />
               </button>
             </div>
-
             <div className="space-y-4 text-xs">
               <div className="rounded-2xl border border-soft/60 bg-surface/50 p-4 space-y-3">
                 <b className="font-sub font-bold text-ink flex items-center gap-1.5 text-sm">
@@ -947,7 +947,7 @@ export default function SuperAdminPage() {
                   <label className="block font-semibold text-ink/70 mb-1">Kata Sandi Saat Ini *</label>
                   <input
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="........"
                     value={formSandi.lama}
                     onChange={(e) => setFormSandi({ ...formSandi, lama: e.target.value })}
                     className={inp}
@@ -1015,7 +1015,7 @@ export default function SuperAdminPage() {
                     </div>
                     <div>
                       <p className="font-bold text-ink">{deviceInfo.browser}</p>
-                      <p className="text-ink/50">IP Publik: {deviceInfo.ip} · Status: Sesi Aktif</p>
+                      <p className="text-ink/50">IP Publik: {deviceInfo.ip} Status: Sesi Aktif</p>
                     </div>
                   </div>
                   <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 font-bold">
@@ -1024,7 +1024,6 @@ export default function SuperAdminPage() {
                 </div>
               </div>
             </div>
-
             <div className="flex justify-end pt-2 border-t border-soft/40">
               <button onClick={() => setModalKeamanan(false)} className={`${out} h-9 text-xs px-4`}>
                 Tutup Keamanan
@@ -1046,7 +1045,6 @@ export default function SuperAdminPage() {
                 <X size={18} />
               </button>
             </div>
-
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-ink/70 mb-1">Nama Lengkap Admin *</label>
@@ -1067,7 +1065,6 @@ export default function SuperAdminPage() {
                 />
               </div>
             </div>
-
             <div className="flex gap-2 pt-2 border-t border-soft/40">
               <button onClick={() => setModalEditProfil(false)} className={`${out} flex-1`}>
                 Batal
