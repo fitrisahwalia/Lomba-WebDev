@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed, Ticket, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
+);
 
 interface MapPickerProps {
   lat: number;
@@ -1897,18 +1903,53 @@ export default function Page() {
   
   const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
 
+  export default function Page() {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("home");
+  const [listings, setListings] = useState(INIT);
+  const [openId, setOpenId] = useState<number | null>(null);
+  
+  const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
+
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    nama: "Ushi",
-    email: "ushi@email.com",
-    phone: "+62 812-3456-7890",
-    jalanNo: "Jl. Melati No. 12",
+    nama: "",
+    email: "",
+    phone: "",
+    jalanNo: "",
     rt: "",
     rw: "",
-    kotaKecamatan: "Jatinangor, Sumedang",
-    patokan: "Pagar hitam depan warung kelontong",
+    kotaKecamatan: "",
+    patokan: "",
     lat: -6.9312,
     lng: 107.7735
   });
+
+  useEffect(() => {
+    async function loadBuyerProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: dbProfile } = await supabase
+            .from("profiles")
+            .select("nama, no_hp")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          setUserProfile((prev) => ({
+            ...prev,
+            nama: dbProfile?.nama || user.user_metadata?.nama || "Sahwa",
+            email: user.email || "sahwa+pembeli@gmail.com",
+            phone: dbProfile?.no_hp || user.user_metadata?.no_hp || "+62 812-3456-7890",
+          }));
+        }
+      } catch (err) {
+        console.error("Gagal memuat profil pembeli:", err);
+      }
+    }
+
+    loadBuyerProfile();
+  }, []);
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isEditAddressOpen, setIsEditAddressOpen] = useState(false);
