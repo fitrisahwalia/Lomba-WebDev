@@ -33,20 +33,20 @@ export async function middleware(request: NextRequest) {
       .select('role')
       .eq('id', user.id)
       .single()
-    role = profile?.role
+    role = profile?.role?.toLowerCase();
   }
 
-  // Melindungi halaman /admin (khusus role admin)
+  // Melindungi halaman /admin (Izinkan admin, adminops, dan superadmin)
   if (url.pathname.startsWith('/admin')) {
-    if (!user || role !== 'admin') {
+    if (!user || !['admin', 'adminops', 'superadmin'].includes(role)) {
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
   }
 
-  // Melindungi halaman /transport (khusus role transport & admin)
+  // Melindungi halaman /transport (Izinkan admintransport, kurir, supir, superadmin)
   if (url.pathname.startsWith('/transport')) {
-    if (!user || (role !== 'transport' && role !== 'admin')) {
+    if (!user || !['admintransport', 'kurir', 'supir', 'superadmin'].includes(role)) {
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
