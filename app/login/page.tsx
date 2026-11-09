@@ -174,28 +174,31 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Autentikasi dengan Supabase Auth
+      // 1. Autentikasi sungguhan dengan Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
       });
 
       if (authError || !authData.user) {
-        // Fallback untuk Mode Demo / penguji jika user belum ada di auth Supabase
-        console.warn("Auth Supabase tidak ditemukan, menggunakan pengarahan berbasis alias demo.");
-        redirectByRole(detectedRole || "pembeli", v);
+        setErr({ auth: authError?.message || "Email atau kata sandi salah." });
+        setLoading(false);
         return;
       }
 
-      // 2. Ambil role asli dari tabel profiles
+      // 2. Wajib ambil role asli dari tabel profiles (Abaikan mode demo/fallback)
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", authData.user.id)
         .single();
 
-      const dbRole = profile?.role?.toLowerCase() as Role;
-      redirectByRole(dbRole || detectedRole || "pembeli", v);
+      // Gunakan role dari database. Jika kosong, baru anggap pembeli.
+      const dbRole = profile?.role?.toLowerCase() || "pembeli";
+      
+      // 3. Langsung eksekusi fungsi redirectByRole dengan role database
+      redirectByRole(dbRole, v);
+
     } catch (error: any) {
       setErr({ auth: error.message || "Gagal melakukan proses masuk." });
       setLoading(false);
