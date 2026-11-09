@@ -193,33 +193,39 @@ export default function LoginPage() {
         password: pw,
       });
 
-      if (authError || !authData.user) {
+      if (authError || !authData.user || !authData.session) {
         setErr({ auth: authError?.message || "Email atau kata sandi salah." });
         setLoading(false);
         return;
       }
 
-      // 2. Ambil data dari tabel profiles
-      const { data: profile, error: profErr } = await supabase
-        .from("profiles")
-        .select("role, nama")
-        .eq("id", authData.user.id)
-        .maybeSingle();
+      // 2. Ambil role dari User Metadata bawaan Auth (jika ada)
+      let targetRole = authData.user.user_metadata?.role?.toLowerCase();
 
-      const dbRole = profile?.role?.toLowerCase() || authData.user.user_metadata?.role?.toLowerCase() || "pembeli";
+      // 3. Jika metadata tidak ada, query ke profiles menggunakan Token Akses Sesi yang baru aktif
+      if (!targetRole) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", authData.user.id)
+          .maybeSingle();
 
-      // 🔍 POP-UP DEBUGGING: CEK SIAPA YANG BENAR-BENAR LOG IN
-      alert(
-        `[DEBUG LOG IN]\n` +
-        `Email Diinput: ${v}\n` +
-        `ID User: ${authData.user.id}\n` +
-        `Nama Profile DB: ${profile?.nama || "Tidak ditemukan"}\n` +
-        `Role DB: ${profile?.role || "Kosong"}\n` +
-        `Role Final Redirect: ${dbRole}`
-      );
+        targetRole = profile?.role?.toLowerCase();
+      }
+
+      // 4. Jika masih belum ketemu juga, paksa cek metadata / fallback
+      const finalRole = targetRole || "pembeli";
+
+      if (remember) {
+        localStorage.setItem("jalalink_remember", v);
+      } else {
+        localStorage.removeItem("jalalink_remember");
+      }
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
-      redirectByRole(dbRole);
+
+      // 5. Eksekusi redirect sesuai role
+      redirectByRole(finalRole);
 
     } catch (error: any) {
       console.error("Login Error:", error);
