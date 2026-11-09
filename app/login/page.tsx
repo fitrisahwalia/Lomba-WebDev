@@ -47,21 +47,6 @@ const aliasFor = (v: string, tag: string) => {
   return `${local.split("+")[0] || "emailkamu"}${tag}@${dom || "gmail.com"}`;
 };
 
-function detectRole(v: string): Role | null {
-  const s = v.trim().toLowerCase();
-  if (!s) return null;
-  const local = s.split("@")[0];
-  const tag = local.includes("+") ? local.split("+")[1] : s.includes("@") ? "" : local;
-  if (tag.includes("superadmin")) return "superadmin";
-  if (tag.includes("adminops") || tag.includes("admin")) return "adminops";
-  if (tag.includes("admintransport")) return "admintransport";
-  if (tag.includes("kurir")) return "kurir";
-  if (tag.includes("supir")) return "supir";
-  if (tag.includes("transport")) return "kurir";
-  if (tag.includes("nelayan")) return "nelayan";
-  return "pembeli";
-}
-
 const inp = "h-12 w-full rounded-xl border bg-white pl-11 pr-4 text-sm text-ink outline-none placeholder:text-soft focus:border-brand";
 
 function ResetModal({ initial, onClose, onOtp }: { initial: string; onClose: () => void; onOtp: (email: string, otp: string) => void }) {
@@ -150,9 +135,6 @@ export default function LoginPage() {
   const [reset, setReset] = useState(false);
   const [notif, setNotif] = useState<{ email: string; otp: string } | null>(null);
 
-  const detectedRole = detectRole(id);
-  const info = ROLES.find((r) => r.k === detectedRole);
-
   useEffect(() => {
     try {
       const s = localStorage.getItem("jalalink_remember");
@@ -186,9 +168,9 @@ export default function LoginPage() {
       });
 
       if (authError || !authData.user) {
-        setErr({ auth: "Email atau kata sandi salah." });
-        setLoading(false);
-        return;
+      setErr({ auth: authError?.message || "Email atau kata sandi salah." });
+      setLoading(false);
+      return;
       }
 
       // 2. Ambil role dari tabel profiles
@@ -302,7 +284,6 @@ export default function LoginPage() {
                 <input id="id" value={id} onChange={(e) => { setId(e.target.value); setErr((x) => ({ ...x, id: undefined, auth: undefined })); }} autoComplete="username" placeholder="emailkamu+nelayan@gmail.com" className={`${inp} ${err.id ? "border-red-500" : "border-soft"}`} />
               </div>
               {err.id && <p className="text-xs text-red-600">{err.id}</p>}
-              {info && !err.id && <p className="flex items-center gap-2 font-sub text-xs font-semibold text-brand"><info.Icon size={14} />Deteksi Peran: {info.label}</p>}
             </div>
 
             <div className="space-y-1.5">
