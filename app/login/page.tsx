@@ -143,31 +143,34 @@ export default function LoginPage() {
   }, []);
 
   const redirectByRole = (targetRole: string) => {
+    let targetPath = "/buyer"; // Default ke buyer jika role tidak cocok
+
     switch (targetRole) {
       case "superadmin":
+        targetPath = "/admin/admin-ops/super-admin";
+        break;
       case "adminops":
       case "admin":
-        router.push("/admin/admin-ops");
+        targetPath = "/admin/admin-ops";
         break;
       case "admintransport":
-        router.push("/transport");
-        break;
       case "kurir":
-        router.push("/transport/kurir");
-        break;
       case "supir":
-        router.push("/transport/supir");
+        targetPath = "/transport";
         break;
       case "nelayan":
-        router.push("/nelayan");
+        targetPath = "/nelayan";
         break;
       case "pembeli":
-        router.push("/buyer");
+        targetPath = "/buyer";
         break;
       default:
-        router.push("/");
+        targetPath = "/buyer";
         break;
     }
+
+    // Gunakan window.location.href agar halaman dipaksa pindah & reload penuh
+    window.location.href = targetPath;
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -175,9 +178,7 @@ export default function LoginPage() {
     const v = id.trim();
     let er: typeof err = {};
 
-    if (!EMAIL_RE.test(v)) {
-      er.id = "Masukkan email yang valid";
-    }
+    if (!EMAIL_RE.test(v)) er.id = "Masukkan email yang valid";
     if (pw.length < 6) er.pw = "Kata sandi minimal 6 karakter";
 
     setErr(er);
@@ -193,37 +194,31 @@ export default function LoginPage() {
 
       if (authError || !authData.user) {
         setErr({ auth: authError?.message || "Email atau kata sandi salah." });
-        setLoading(false);
+        setLoading(false); // Matikan putaran tombol
         return;
       }
 
+      // Ambil data profile role
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", authData.user.id)
-        .single();
+        .maybeSingle();
 
       const dbRole = profile?.role?.toLowerCase() || "pembeli";
 
-      if (remember) {
-        localStorage.setItem("jalalink_remember", v);
-      } else {
-        localStorage.removeItem("jalalink_remember");
-      }
-
       setOk("Berhasil masuk. Mengalihkan ke portal...");
-
-      setTimeout(() => {
-        redirectByRole(dbRole);
-      }, 700);
+      
+      // Langsung redirect
+      redirectByRole(dbRole);
 
     } catch (error: any) {
       console.error(error);
       setErr({ auth: "Gagal memproses login. Silakan coba lagi." });
-      setLoading(false);
+      setLoading(false); // Matikan putaran tombol
     }
   };
-
+  
   return (
     <div className="min-h-screen bg-white font-body text-ink lg:grid lg:grid-cols-2">
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-brand p-12 text-white lg:flex">
