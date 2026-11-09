@@ -161,19 +161,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Autentikasi dengan Supabase
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
       });
 
       if (authError || !authData.user) {
-      setErr({ auth: authError?.message || "Email atau kata sandi salah." });
-      setLoading(false);
-      return;
+        setErr({ auth: authError?.message || "Email atau kata sandi salah." });
+        setLoading(false);
+        return;
       }
 
-      // 2. Ambil role dari tabel profiles
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -182,16 +180,15 @@ export default function LoginPage() {
 
       const dbRole = profile?.role?.toLowerCase() || "pembeli";
 
-      // 3. Simpan state dan beri notifikasi sukses
       if (remember) {
         localStorage.setItem("jalalink_remember", v);
       } else {
         localStorage.removeItem("jalalink_remember");
       }
-      
+
       setOk("Berhasil masuk. Mengalihkan ke portal...");
 
-      // 4. Langsung arahkan (Routing) berdasarkan dbRole
+      // Routing Berdasarkan dbRole (Hapus redirectByRole lama)
       setTimeout(() => {
         if (dbRole === "superadmin") {
           router.push("/admin/admin-ops/super-admin");
