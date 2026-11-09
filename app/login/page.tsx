@@ -188,11 +188,9 @@ export default function LoginPage() {
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
 
-      // Routing Berdasarkan dbRole (Hapus redirectByRole lama)
+      // Routing Berdasarkan dbRole
       setTimeout(() => {
-        if (dbRole === "superadmin") {
-          window.location.href = "/admin/admin-ops/super-admin";
-        } else if (dbRole === "adminops" || dbRole === "admin") {
+        if (dbRole === "superadmin" || dbRole === "adminops" || dbRole === "admin") {
           window.location.href = "/admin/admin-ops";
         } else if (dbRole === "admintransport") {
           window.location.href = "/transport";
@@ -240,7 +238,8 @@ export default function LoginPage() {
           router.push("/transport");
           break;
         case "superadmin":
-          router.push("/admin/admin-ops/super-admin");
+        case "adminops":
+          router.push("/admin/admin-ops");
           break;
         case "adminops":
           router.push("/admin/admin-ops");
