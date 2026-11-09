@@ -143,7 +143,7 @@ export default function LoginPage() {
   }, []);
 
   const redirectByRole = (targetRole: string) => {
-    let targetPath = "/buyer"; // Default ke buyer jika role tidak cocok
+    let targetPath = "/buyer";
 
     switch (targetRole) {
       case "superadmin":
@@ -169,7 +169,7 @@ export default function LoginPage() {
         break;
     }
 
-    // Gunakan window.location.href agar halaman dipaksa pindah & reload penuh
+    // Paksa browser berpindah halaman secara penuh
     window.location.href = targetPath;
   };
 
@@ -187,7 +187,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Authenticate user ke Supabase Auth
+      // 1. Authenticate ke Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
@@ -199,17 +199,16 @@ export default function LoginPage() {
         return;
       }
 
-      // 2. Ambil role dari tabel DB profiles terlebih dahulu
+      // 2. Ambil role langsung dari tabel profiles di database
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", authData.user.id)
         .maybeSingle();
 
-      // 3. Jika DB profiles kosong, baru fallback ke user_metadata
+      // 3. Tentukan role (ambil dari DB profiles -> user_metadata -> default pembeli)
       const dbRole = profile?.role?.toLowerCase() || authData.user.user_metadata?.role?.toLowerCase() || "pembeli";
 
-      // 4. Simpan status remember me jika dicentang
       if (remember) {
         localStorage.setItem("jalalink_remember", v);
       } else {
@@ -218,7 +217,7 @@ export default function LoginPage() {
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
 
-      // 5. Eksekusi redirect sesuai role
+      // 4. Eksekusi redirect sesuai role
       redirectByRole(dbRole);
 
     } catch (error: any) {
