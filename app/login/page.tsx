@@ -156,7 +156,7 @@ export default function LoginPage() {
       case "admintransport":
       case "kurir":
       case "supir":
-        targetPath = "/transport";
+        targetPath = "/admin/admin-ops/super-admin";
         break;
       case "nelayan":
         targetPath = "/nelayan";
@@ -200,9 +200,9 @@ export default function LoginPage() {
       }
 
       // 2. Ambil role dari User Metadata bawaan Auth (jika ada)
-      let targetRole = authData.user.user_metadata?.role?.toLowerCase();
+      let targetRole = authData.user.user_metadata?.role?.toLowerCase().replace(/[\s_]/g, "");
 
-      // 3. Jika metadata tidak ada, query ke profiles menggunakan Token Akses Sesi yang baru aktif
+      // 3. Jika metadata tidak ada, query ke tabel profiles
       if (!targetRole) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -210,12 +210,13 @@ export default function LoginPage() {
           .eq("id", authData.user.id)
           .maybeSingle();
 
-        targetRole = profile?.role?.toLowerCase();
+        if (profile?.role) {
+          targetRole = profile.role.toLowerCase().replace(/[\s_]/g, "");
+        }
       }
 
-      // 4. Jika masih belum ketemu juga, paksa cek metadata / fallback
+      // 4. Tentukan rute akhir (fallback ke pembeli jika kosong)
       const finalRole = targetRole || "pembeli";
-
       if (remember) {
         localStorage.setItem("jalalink_remember", v);
       } else {
