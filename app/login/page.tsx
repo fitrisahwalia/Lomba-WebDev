@@ -187,6 +187,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // 1. Authenticate user
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
@@ -194,28 +195,39 @@ export default function LoginPage() {
 
       if (authError || !authData.user) {
         setErr({ auth: authError?.message || "Email atau kata sandi salah." });
-        setLoading(false); // Matikan putaran tombol
+        setLoading(false);
         return;
       }
 
-      // Ambil data profile role
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authData.user.id)
-        .maybeSingle();
+      // 2. Ambil role dari Database Profiles, jika gagal/kosong ambil dari User Metadata
+      let dbRole = authData.user.user_metadata?.role?.toLowerCase();
 
-      const dbRole = profile?.role?.toLowerCase() || "pembeli";
+      if (!dbRole) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", authData.user.id)
+          .maybeSingle();
+        
+        dbRole = profile?.role?.toLowerCase() || "pembeli";
+      }
+
+      // Simpan remember email jika dicentang
+      if (remember) {
+        localStorage.setItem("jalalink_remember", v);
+      } else {
+        localStorage.removeItem("jalalink_remember");
+      }
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
-      
-      // Langsung redirect
+
+      // 3. Langsung eksekusi redirect
       redirectByRole(dbRole);
 
     } catch (error: any) {
-      console.error(error);
+      console.error("Login Error:", error);
       setErr({ auth: "Gagal memproses login. Silakan coba lagi." });
-      setLoading(false); // Matikan putaran tombol
+      setLoading(false);
     }
   };
   
