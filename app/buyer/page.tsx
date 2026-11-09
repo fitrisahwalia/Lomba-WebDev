@@ -1903,52 +1903,46 @@ export default function Page() {
   
   const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
 
-  export default function Page() {
-  const router = useRouter();
-  const [tab, setTab] = useState<Tab>("home");
-  const [listings, setListings] = useState(INIT);
-  const [openId, setOpenId] = useState<number | null>(null);
-  
-  const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
-
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    nama: "",
-    email: "",
-    phone: "",
-    jalanNo: "",
-    rt: "",
-    rw: "",
-    kotaKecamatan: "",
-    patokan: "",
-    lat: -6.9312,
-    lng: 107.7735
-  });
+  nama: "",
+  email: "",
+  phone: "",
+  jalanNo: "Jl. Melati No. 12",
+  rt: "",
+  rw: "",
+  kotaKecamatan: "Jatinangor, Sumedang",
+  patokan: "Pagar hitam depan warung kelontong",
+  lat: -6.9312,
+  lng: 107.7735
+});
 
-  useEffect(() => {
-    async function loadBuyerProfile() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
+useEffect(() => {
+  async function loadBuyerProfile() {
+    try {
+      // Ambil user dari Supabase Auth
+      const { data: { user } } = await supabase.auth.getUser();
 
-        if (user) {
-          const { data: dbProfile } = await supabase
-            .from("profiles")
-            .select("nama, no_hp")
-            .eq("id", user.id)
-            .maybeSingle();
+      if (user) {
+        // Ambil data nama & no_hp dari tabel profiles
+        const { data: dbProfile } = await supabase
+          .from("profiles")
+          .select("nama, no_hp")
+          .eq("id", user.id)
+          .maybeSingle();
 
-          setUserProfile((prev) => ({
-            ...prev,
-            nama: dbProfile?.nama || user.user_metadata?.nama || "Sahwa",
-            email: user.email || "sahwa+pembeli@gmail.com",
-            phone: dbProfile?.no_hp || user.user_metadata?.no_hp || "+62 812-3456-7890",
-          }));
-        }
-      } catch (err) {
-        console.error("Gagal memuat profil pembeli:", err);
+        setUserProfile((prev) => ({
+          ...prev,
+          nama: dbProfile?.nama || user.user_metadata?.nama || "Pembeli",
+          email: user.email || "",
+          phone: dbProfile?.no_hp || user.user_metadata?.no_hp || "+62 812-3456-7890",
+        }));
       }
+    } catch (err) {
+      console.error("Gagal memuat profil pembeli:", err);
     }
+  }
 
-    loadBuyerProfile();
+  loadBuyerProfile();
   }, []);
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
