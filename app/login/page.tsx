@@ -7,7 +7,6 @@ import { createClient } from "@supabase/supabase-js";
 import {
   Eye,
   EyeOff,
-  Info,
   Mail,
   X,
   Loader2,
@@ -17,7 +16,6 @@ import {
   ShieldCheck,
   Crown,
   Check,
-  Copy,
   KeyRound,
   ChevronDown,
   Lock,
@@ -29,7 +27,7 @@ type Role = "pembeli" | "nelayan" | "kurir" | "supir" | "admintransport" | "admi
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-); 
+);
 
 const ROLES: { k: Role; label: string; tag: string; Icon: typeof Fish; job: string }[] = [
   { k: "pembeli", label: "Pembeli", tag: "+pembeli", Icon: ShoppingCart, job: "Belanja ikan, chat, dan pesan" },
@@ -133,7 +131,6 @@ export default function LoginPage() {
   const [ok, setOk] = useState("");
   const [tips, setTips] = useState(true);
   const [reset, setReset] = useState(false);
-  const [notif, setNotif] = useState<{ email: string; otp: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -145,16 +142,44 @@ export default function LoginPage() {
     } catch {}
   }, []);
 
+  const redirectByRole = (targetRole: string) => {
+    switch (targetRole) {
+      case "superadmin":
+      case "adminops":
+      case "admin":
+        router.push("/admin/admin-ops");
+        break;
+      case "admintransport":
+        router.push("/transport");
+        break;
+      case "kurir":
+        router.push("/transport/kurir");
+        break;
+      case "supir":
+        router.push("/transport/supir");
+        break;
+      case "nelayan":
+        router.push("/nelayan");
+        break;
+      case "pembeli":
+        router.push("/buyer");
+        break;
+      default:
+        router.push("/");
+        break;
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const v = id.trim();
     let er: typeof err = {};
 
-    if (v.includes("@") ? !EMAIL_RE.test(v) : v.length < 3) {
-      er.id = v.includes("@") ? "Format email belum benar" : "Email atau username minimal 3 karakter";
+    if (!EMAIL_RE.test(v)) {
+      er.id = "Masukkan email yang valid";
     }
     if (pw.length < 6) er.pw = "Kata sandi minimal 6 karakter";
-    
+
     setErr(er);
     if (er.id || er.pw) return;
 
@@ -188,21 +213,8 @@ export default function LoginPage() {
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
 
-      // Routing Berdasarkan dbRole
       setTimeout(() => {
-        if (dbRole === "superadmin" || dbRole === "adminops" || dbRole === "admin") {
-          window.location.href = "/admin/admin-ops";
-        } else if (dbRole === "admintransport") {
-          window.location.href = "/transport";
-        } else if (dbRole === "kurir") {
-          window.location.href = "/transport/kurir";
-        } else if (dbRole === "supir") {
-          window.location.href = "/transport/supir";
-        } else if (dbRole === "nelayan") {
-          window.location.href = "/nelayan";
-        } else {
-          window.location.href = "/";
-        }
+        redirectByRole(dbRole);
       }, 700);
 
     } catch (error: any) {
@@ -210,45 +222,6 @@ export default function LoginPage() {
       setErr({ auth: "Gagal memproses login. Silakan coba lagi." });
       setLoading(false);
     }
-  };
-
-  const redirectByRole = (targetRole: string, emailVal: string) => {
-    try {
-      remember ? localStorage.setItem("jalalink_remember", emailVal) : localStorage.removeItem("jalalink_remember");
-    } catch {}
-
-    setOk(`Berhasil masuk. Mengalihkan ke portal...`);
-    setLoading(false);
-
-    setTimeout(() => {
-      switch (targetRole) {
-        case "nelayan":
-          router.push("/nelayan");
-          break;
-        case "pembeli":
-          router.push("/buyer");
-          break;
-        case "kurir":
-          router.push("/transport/kurir");
-          break;
-        case "supir":
-          router.push("/transport/supir");
-          break;
-        case "admintransport":
-          router.push("/transport");
-          break;
-        case "superadmin":
-        case "adminops":
-          router.push("/admin/admin-ops");
-          break;
-        case "adminops":
-          router.push("/admin/admin-ops");
-          break;
-        default:
-          router.push("/");
-          break;
-      }
-    }, 700);
   };
 
   return (
@@ -273,9 +246,7 @@ export default function LoginPage() {
             {err.auth && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-600 border border-red-200">{err.auth}</p>}
 
             <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 font-sub text-sm font-semibold">
-                <label htmlFor="id">Email / Username</label>
-              </div>
+              <label htmlFor="id" className="font-sub text-sm font-semibold">Email</label>
               <div className="relative"><Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-soft" />
                 <input id="id" value={id} onChange={(e) => { setId(e.target.value); setErr((x) => ({ ...x, id: undefined, auth: undefined })); }} autoComplete="username" placeholder="emailkamu+nelayan@gmail.com" className={`${inp} ${err.id ? "border-red-500" : "border-soft"}`} />
               </div>
@@ -322,7 +293,7 @@ export default function LoginPage() {
         </div>
       </main>
 
-      {reset && <ResetModal initial={id} onClose={() => setReset(false)} onOtp={(email, otp) => setNotif({ email, otp })} />}
+      {reset && <ResetModal initial={id} onClose={() => setReset(false)} onOtp={(email, otp) => console.log(email, otp)} />}
     </div>
   );
 }
