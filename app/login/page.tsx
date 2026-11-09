@@ -191,19 +191,19 @@ export default function LoginPage() {
       // Routing Berdasarkan dbRole (Hapus redirectByRole lama)
       setTimeout(() => {
         if (dbRole === "superadmin") {
-          router.push("/admin/admin-ops/super-admin");
+          window.location.href = "/admin/admin-ops/super-admin";
         } else if (dbRole === "adminops" || dbRole === "admin") {
-          router.push("/admin/admin-ops");
+          window.location.href = "/admin/admin-ops";
         } else if (dbRole === "admintransport") {
-          router.push("/transport");
+          window.location.href = "/transport";
         } else if (dbRole === "kurir") {
-          router.push("/transport/kurir");
+          window.location.href = "/transport/kurir";
         } else if (dbRole === "supir") {
-          router.push("/transport/supir");
+          window.location.href = "/transport/supir";
         } else if (dbRole === "nelayan") {
-          router.push("/nelayan");
+          window.location.href = "/nelayan";
         } else {
-          router.push("/");
+          window.location.href = "/";
         }
       }, 700);
 
