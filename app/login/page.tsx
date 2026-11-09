@@ -143,31 +143,34 @@ export default function LoginPage() {
   }, []);
 
   const redirectByRole = (targetRole: string) => {
-    let targetPath = "/buyer"; // Default ke buyer jika role tidak cocok
+  let targetPath = "/buyer";
 
-    switch (targetRole) {
-      case "superadmin":
-        targetPath = "/admin/admin-ops/super-admin";
-        break;
-      case "adminops":
-      case "admin":
-        targetPath = "/admin/admin-ops";
-        break;
-      case "admintransport":
-      case "kurir":
-      case "supir":
-        targetPath = "/transport";
-        break;
-      case "nelayan":
-        targetPath = "/nelayan";
-        break;
-      case "pembeli":
-        targetPath = "/buyer";
-        break;
-      default:
-        targetPath = "/buyer";
-        break;
-    }
+  switch (targetRole) {
+    case "superadmin":
+      targetPath = "/admin/admin-ops/super-admin";
+      break;
+    case "adminops":
+    case "admin":
+      targetPath = "/admin/admin-ops";
+      break;
+    case "admintransport":
+    case "kurir":
+    case "supir":
+      targetPath = "/transport";
+      break;
+    case "nelayan":
+      targetPath = "/nelayan";
+      break;
+    case "pembeli":
+      targetPath = "/buyer";
+      break;
+    default:
+      targetPath = "/buyer";
+      break;
+  }
+
+  window.location.href = targetPath;
+  };
 
     // Gunakan window.location.href agar halaman dipaksa pindah & reload penuh
     window.location.href = targetPath;
