@@ -29,6 +29,13 @@ import {
   Info,
   ShoppingCart
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
+);
+
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const now = () =>
@@ -691,6 +698,32 @@ export default function NelayanPage() {
   
   const [modalCairkan, setModalCairkan] = useState(false);
   const [selectedIkanReview, setSelectedIkanReview] = useState<Ikan | null>(null);
+  const [nelayanProfile, setNelayanProfile] = useState<{ nama: string; daerah: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchNelayanProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("nama, daerah")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile) {
+            setNelayanProfile({
+              nama: profile.nama || user.user_metadata?.nama || "Nelayan",
+              daerah: profile.daerah || "Pesisir"
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Gagal mengambil profil nelayan:", err);
+      }
+    }
+    fetchNelayanProfile();
+  }, []);
 
   useEffect(() => {
     async function fetchStokReal() {
@@ -793,7 +826,7 @@ export default function NelayanPage() {
       <header className="sticky top-0 z-30 border-b border-soft/30 bg-white px-4 py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <button onClick={() => go("home")} aria-label="Beranda" className="flex items-center gap-2">
-            <Image src="/logo-icon.png" alt="JalaLink" width={36} height={36} className="object-contain" priority />
+            <Image src="/logo.png" alt="JalaLink" width={36} height={36} className="object-contain" priority />
             <span className="font-heading font-bold text-lg text-[#0E7C86]">JalaLink</span>
           </button>
           <div className="flex items-center gap-2">
@@ -801,8 +834,8 @@ export default function NelayanPage() {
               Nelayan
             </span>
             <button onClick={() => go("akun")} className="grid size-8 place-items-center rounded-full bg-[#0E7C86] font-sub font-bold text-white text-xs">
-              W
-            </button>
+            {nelayanProfile?.nama ? nelayanProfile.nama[0].toUpperCase() : "N"}
+          </button>
           </div>
         </div>
       </header>
@@ -821,7 +854,7 @@ export default function NelayanPage() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h1 className="font-heading text-xl font-bold">Halo, Pak Wayan!</h1>
+                  <h1 className="font-heading text-xl font-bold">Halo, {nelayanProfile?.nama || "Nelayan"}!</h1>
                   <p className="text-xs text-ink/60">TPI Cilacap · Dermaga Utama</p>
                 </div>
                 
@@ -1110,12 +1143,14 @@ export default function NelayanPage() {
             <div className="mx-auto max-w-2xl space-y-4 text-xs">
               <h1 className="font-heading text-xl font-bold">Akun Toko Nelayan</h1>
               <div className="flex items-center gap-3 rounded-2xl bg-surface p-4 border border-soft/40">
-                <div className="grid size-12 place-items-center rounded-full bg-[#0E7C86] font-bold text-white text-lg">W</div>
+                <div className="grid size-12 place-items-center rounded-full bg-[#0E7C86] font-bold text-white text-lg">
+                  {nelayanProfile?.nama ? nelayanProfile.nama[0].toUpperCase() : "N"}
+                </div>
                 <div>
                   <p className="font-bold text-sm flex items-center gap-1">
-                    Pak Wayan <BadgeCheck size={16} className="text-[#0E7C86]" />
+                    {nelayanProfile?.nama || "Nelayan"} <BadgeCheck size={16} className="text-[#0E7C86]" />
                   </p>
-                  <p className="text-ink/60">Nelayan Tangkap · TPI Cilacap</p>
+                  <p className="text-ink/60">Nelayan Tangkap TPI {nelayanProfile?.daerah || "Cilacap"}</p>
                   <p className="flex items-center gap-1 text-ink/60 mt-0.5">
                     <Star size={12} className="fill-[#0E7C86] text-[#0E7C86]" />
                     <b>4,8</b> · 23 ulasan toko
