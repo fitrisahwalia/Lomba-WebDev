@@ -187,7 +187,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Authenticate ke Supabase Auth
+      // 1. Login ke Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
@@ -199,25 +199,26 @@ export default function LoginPage() {
         return;
       }
 
-      // 2. Ambil role langsung dari tabel profiles di database
-      const { data: profile } = await supabase
+      // 2. Ambil data dari tabel profiles
+      const { data: profile, error: profErr } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, nama")
         .eq("id", authData.user.id)
         .maybeSingle();
 
-      // 3. Tentukan role (ambil dari DB profiles -> user_metadata -> default pembeli)
       const dbRole = profile?.role?.toLowerCase() || authData.user.user_metadata?.role?.toLowerCase() || "pembeli";
 
-      if (remember) {
-        localStorage.setItem("jalalink_remember", v);
-      } else {
-        localStorage.removeItem("jalalink_remember");
-      }
+      // 🔍 POP-UP DEBUGGING: CEK SIAPA YANG BENAR-BENAR LOG IN
+      alert(
+        `[DEBUG LOG IN]\n` +
+        `Email Diinput: ${v}\n` +
+        `ID User: ${authData.user.id}\n` +
+        `Nama Profile DB: ${profile?.nama || "Tidak ditemukan"}\n` +
+        `Role DB: ${profile?.role || "Kosong"}\n` +
+        `Role Final Redirect: ${dbRole}`
+      );
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
-
-      // 4. Eksekusi redirect sesuai role
       redirectByRole(dbRole);
 
     } catch (error: any) {
