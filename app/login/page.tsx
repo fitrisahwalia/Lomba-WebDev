@@ -165,42 +165,72 @@ export default function LoginPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const v = id.trim(), er: typeof err = {};
-    if (v.includes("@") ? !EMAIL_RE.test(v) : v.length < 3) er.id = v.includes("@") ? "Format email belum benar" : "Email atau username minimal 3 karakter";
+    const v = id.trim();
+    let er: typeof err = {};
+
+    if (v.includes("@") ? !EMAIL_RE.test(v) : v.length < 3) {
+      er.id = v.includes("@") ? "Format email belum benar" : "Email atau username minimal 3 karakter";
+    }
     if (pw.length < 6) er.pw = "Kata sandi minimal 6 karakter";
+    
     setErr(er);
     if (er.id || er.pw) return;
 
     setLoading(true);
 
     try {
-      // 1. Autentikasi sungguhan dengan Supabase Auth
+      // 1. Autentikasi dengan Supabase
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: v,
         password: pw,
       });
 
       if (authError || !authData.user) {
-        setErr({ auth: authError?.message || "Email atau kata sandi salah." });
+        setErr({ auth: "Email atau kata sandi salah." });
         setLoading(false);
         return;
       }
 
-      // 2. Wajib ambil role asli dari tabel profiles (Abaikan mode demo/fallback)
+      // 2. Ambil role dari tabel profiles
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", authData.user.id)
         .single();
 
-      // Gunakan role dari database. Jika kosong, baru anggap pembeli.
       const dbRole = profile?.role?.toLowerCase() || "pembeli";
+
+      // 3. Simpan state dan beri notifikasi sukses
+      if (remember) {
+        localStorage.setItem("jalalink_remember", v);
+      } else {
+        localStorage.removeItem("jalalink_remember");
+      }
       
-      // 3. Langsung eksekusi fungsi redirectByRole dengan role database
-      redirectByRole(dbRole, v);
+      setOk("Berhasil masuk. Mengalihkan ke portal...");
+
+      // 4. Langsung arahkan (Routing) berdasarkan dbRole
+      setTimeout(() => {
+        if (dbRole === "superadmin") {
+          router.push("/admin/admin-ops/super-admin");
+        } else if (dbRole === "adminops" || dbRole === "admin") {
+          router.push("/admin/admin-ops");
+        } else if (dbRole === "admintransport") {
+          router.push("/transport");
+        } else if (dbRole === "kurir") {
+          router.push("/transport/kurir");
+        } else if (dbRole === "supir") {
+          router.push("/transport/supir");
+        } else if (dbRole === "nelayan") {
+          router.push("/nelayan");
+        } else {
+          router.push("/");
+        }
+      }, 700);
 
     } catch (error: any) {
-      setErr({ auth: error.message || "Gagal melakukan proses masuk." });
+      console.error(error);
+      setErr({ auth: "Gagal memproses login. Silakan coba lagi." });
       setLoading(false);
     }
   };
