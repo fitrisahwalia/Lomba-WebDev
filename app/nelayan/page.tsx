@@ -701,28 +701,59 @@ export default function NelayanPage() {
   const [nelayanProfile, setNelayanProfile] = useState<{ nama: string; daerah: string } | null>(null);
 
   useEffect(() => {
-    async function fetchNelayanProfile() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("nama, daerah")
-            .eq("id", user.id)
-            .maybeSingle();
+  async function fetchNelayanProfile() {
+    try {
+      // 1. Ambil session aktif dari Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
-          if (profile) {
-            setNelayanProfile({
-              nama: profile.nama || user.user_metadata?.nama || "Nelayan",
-              daerah: profile.daerah || "Pesisir"
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Gagal mengambil profil nelayan:", err);
+      if (!user) {
+        console.warn("User belum terdeteksi login di session.");
+        return;
       }
+
+      console.log("ID User Login:", user.id);
+
+      // 2. Query ke tabel profiles (pilih kolom nama saja agar aman dari error kolom daerah)
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("nama")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching profiles table:", error);
+      }
+
+      // 3. Tentukan nama (Prioritas: tabel profiles -> metadata auth -> fallback)
+      const namaReal = 
+        profile?.nama || 
+        user.user_metadata?.nama || 
+        user.user_metadata?.full_name || 
+        user.email?.split("@")[0] || 
+        "Nelayan";
+
+      setNelayanProfile({
+        nama: namaReal,
+        daerah: "Cilacap"
+      });
+    } catch (err) {
+      console.error("Gagal mengambil profil nelayan:", err);
     }
-    fetchNelayanProfile();
+  }
+
+  fetchNelayanProfile();
+
+  // Dengarkan jika ada perubahan status login (logout/login ulang)
+  const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      fetchNelayanProfile();
+    }
+  });
+
+  return () => {
+    authListener.subscription.unsubscribe();
+  };
   }, []);
 
   useEffect(() => {
