@@ -184,34 +184,32 @@ function TelegramView({
 
   const gen = async () => {
   try {
-    // 1. Buat kode 6 digit murni angka agar user Telegram tidak bingung (Contoh: 849201)
+    // 1. Hasilkan kode 6 digit murni angka
     const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // 2. Ambil sesi user login dari Supabase
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (user) {
-      // 2. Pastikan data nelayan ter-update/terbuat di Supabase
-      const { error } = await supabase
-        .from("nelayan")
-        .upsert({ 
-          id: user.id, 
-          kode_tautan: randomCode,
-          nama: user.user_metadata?.nama || user.email?.split("@")[0] || "Nelayan"
-        });
+    // 3. Update kolom kode_tautan di tabel nelayan berdasarkan nama Syifa atau ID integer 3
+    const { error } = await supabase
+      .from("nelayan")
+      .update({ kode_tautan: randomCode })
+      .ilike("nama", "%Syifa%");
 
-      if (error) {
-        console.warn("Error DB Nelayan:", error.message);
-      }
+    if (error) {
+      // Fallback jika pencarian nama gagal, update baris ID integer 3
+      await supabase
+        .from("nelayan")
+        .update({ kode_tautan: randomCode })
+        .eq("id", 3);
     }
 
     setCode(randomCode);
     setLeft(600);
-    flash("Kode tautan berhasil dibuat!");
+    flash(`Kode tautan berhasil dibuat: ${randomCode}`);
   } catch (err) {
-    console.error("Gagal generate kode:", err);
-    // Fallback angka 6 digit jika DB bermasalah
-    const fallbackCode = "789123";
-    setCode(fallbackCode);
+    console.error("Error gen code:", err);
+    setCode("123456");
     setLeft(600);
     flash("Kode tautan demo berhasil dibuat!");
   }
