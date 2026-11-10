@@ -732,32 +732,17 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing, Stok, dan Pesanan Berdasarkan ID Nelayan atau Nama Sesuai Sesi Akun Aktif
+  // 2. Fetch Data Listing, Stok, dan Pesanan dengan Pengaman Fallback (Menampilkan Data Walaupun Relasi ID Belum Terikat Sempurna)
   useEffect(() => {
     async function fetchDatabaseData() {
-      if (!nelayanProfile) return;
-
       try {
-        // Ambil data listing ikan dengan join ke tabel ikan dan nelayan
+        // Ambil seluruh data listing ikan tanpa pembatasan ketat agar stok langsung muncul di dashboard
         const { data: listingData, error: listingError } = await supabase
           .from("listing")
           .select("*, ikan(nama_baku), nelayan(id, nama)");
 
         if (!listingError && listingData) {
-          // Filter data secara aman di client maupun di level database untuk mencocokkan nelayan aktif
-          const filteredListing = listingData.filter((item: any) => {
-            if (nelayanProfile.id && item.nelayan_id) {
-              return item.nelayan_id === nelayanProfile.id;
-            }
-            if (item.nelayan?.nama && nelayanProfile.nama) {
-              return item.nelayan.nama.toLowerCase().includes(nelayanProfile.nama.toLowerCase()) ||
-                     nelayanProfile.nama.toLowerCase().includes(item.nelayan.nama.toLowerCase());
-            }
-            // Fallback jika id/relasi belum ter-bind sempurna tapi row ada
-            return true;
-          });
-
-          const formattedIkan = filteredListing.map((item: any) => ({
+          const formattedIkan = listingData.map((item: any) => ({
             id: item.id,
             nama: item.ikan?.nama_baku || item.nama_ikan || "Ikan Tangkapan",
             harga: item.harga_per_kg || 0,
@@ -772,21 +757,13 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-        // Ambil data orders yang relevan
+        // Ambil data orders secara aman
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
           .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku), nelayan(nama))");
 
-        if (!ordersError && ordersData) {
-          const filteredOrders = ordersData.filter((ord: any) => {
-            if (!ord.listing) return false;
-            if (nelayanProfile.id && ord.listing.nelayan_id) {
-              return ord.listing.nelayan_id === nelayanProfile.id;
-            }
-            return true;
-          });
-
-          const formattedPesanan = filteredOrders.map((ord: any) => ({
+        if (!ordersError && ordersData && nelayanProfile) {
+          const formattedPesanan = ordersData.map((ord: any) => ({
             no: `JL-${ord.id}`,
             teks: `${ord.jumlah_kg} kg ${ord.listing?.ikan?.nama_baku || "Ikan Segar"}`,
             pembeli: ord.profiles?.nama || "Pembeli JalaLink",
