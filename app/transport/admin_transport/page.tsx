@@ -206,26 +206,29 @@ export default function AdminTransportPage() {
         return false;
       }
 
-      // 2. Simpan ke tabel 'profiles' persis sesuai DDL
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: newUserId,
-          nama: a.nama,
-          role: a.peran.toLowerCase(),
-          email: a.email,
-          area: a.area,
-          kendaraan: a.kendaraan,
-          aktif: true,
-        },
-      ]);
+      // 2. Simpan/Update ke tabel 'profiles' menggunakan .upsert() agar anti-duplicate key
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        [
+          {
+            id: newUserId,
+            nama: a.nama,
+            role: a.peran.toLowerCase(),
+            email: a.email,
+            area: a.area,
+            kendaraan: a.kendaraan,
+            aktif: true,
+          },
+        ],
+        { onConflict: "id" }
+      );
 
       if (profileError) {
-        console.error("Error Insert Profiles:", profileError);
+        console.error("Error Upsert Profiles:", profileError);
         flash(`Gagal simpan profil: ${profileError.message}`);
         return false;
       }
 
-      setTim((t) => [...t, { ...a, id: newUserId, aktif: true, tempPassword: pw }]);
+      setTim((t) => [...t.filter((x) => x.id !== newUserId), { ...a, id: newUserId, aktif: true, tempPassword: pw }]);
 
       if (sheet?.prefill) {
         await supabase.from("lamaran_transport").update({ status: "Disetujui" }).eq("id", sheet.prefill.id);
