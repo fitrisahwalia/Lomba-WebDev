@@ -244,7 +244,18 @@ const SPECIFIC_REVIEWS: Record<number, ReviewItem[]> = {
   ]
 };
 
-const RAW: [string, string, string, number, number, number, number, string, string, string, number, number, string[]][] = [];
+const RAW: [string, string, string, number, number, number, number, string, string, string, number, number, string[]][] = [
+  ["Kakap Merah", "Pak Wayan", "Cilacap", 65000, 100, 2, 8000, "Besok 06.00 WIB", "07.00 - 10.00 WIB", "05.30 WIB", 4.8, 24, ["kakap"]],
+  ["Tongkol Segar", "Pak Darmo", "Pangandaran", 32000, 120, 2, 8000, "Besok 05.30 WIB", "07.00 - 10.00 WIB", "05.10 WIB", 4.7, 40, ["tongkol"]],
+  ["Cakalang", "Pak Hasan", "Sukabumi", 36000, 90, 2, 9000, "Besok 06.30 WIB", "07.30 - 10.30 WIB", "05.20 WIB", 4.6, 18, ["tongkol kecil", "skipjack"]],
+  ["Tuna Sirip Kuning", "Pak Darmo", "Pangandaran", 78000, 60, 3, 8000, "Besok 05.30 WIB", "07.00 - 10.00 WIB", "05.00 WIB", 4.9, 31, ["tuna"]],
+  ["Kembung Segar", "Bu Sari", "Indramayu", 28000, 150, 3, 7000, "Hari ini 15.00 WIB", "16.00 - 18.00 WIB", "04.50 WIB", 4.8, 55, ["banyar"]],
+  ["Tenggiri", "Pak Joko", "Cirebon", 72000, 70, 2, 7500, "Besok 06.00 WIB", "07.00 - 10.00 WIB", "05.15 WIB", 4.7, 22, ["spanish mackerel"]],
+  ["Bawal Putih", "Pak Rahmat", "Pelabuhan Ratu", 85000, 45, 2, 9000, "Besok 07.00 WIB", "08.00 - 11.00 WIB", "05.40 WIB", 4.9, 15, ["bawal"]],
+  ["Layur", "Pak Eman", "Pelabuhan Ratu", 38000, 80, 2, 9000, "Besok 07.00 WIB", "08.00 - 11.00 WIB", "05.25 WIB", 4.5, 12, ["beltfish"]],
+  ["Gurame Laut", "Pak Wayan", "Cilacap", 48000, 85, 2, 8000, "Besok 06.00 WIB", "07.00 - 10.00 WIB", "05.35 WIB", 4.6, 19, ["gurame"]],
+  ["Udang Vaname", "Bu Ani", "Indramayu", 95000, 50, 1, 7000, "Hari ini 15.00 WIB", "16.00 - 18.00 WIB", "04.30 WIB", 4.9, 42, ["udang"]],
+];
 
 const INIT: Listing[] = RAW.map(([nama, nelayan, daerah, harga, stok, min, ongkirFlat, jamTibaHub, jamAntarRumah, jam, rating, ulasanCount, alias], i) => {
   const id = i + 1;
@@ -1904,6 +1915,7 @@ export default function Page() {
   lat: -6.9312,
   lng: 107.7735
 });
+
 
 useEffect(() => {
   async function loadBuyerProfile() {
