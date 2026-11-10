@@ -116,7 +116,8 @@ export default function AdminPage() {
   const [tarif, setTarif] = useStore<Tarif[]>("tarif", TARIF0);
   const [fotoIkan, setFotoIkan] = useState(FOTO0);
 
-  const { session } = useSession(["admintransport", "transport", "admin", "superadmin"]);
+  // 1. Izinkan akses sesi untuk semua role admin & transport
+  const { session } = useSession(["admintransport", "transport", "admin", "superadmin", "Admin Transport"]);
 
   const [adminProfile, setAdminProfile] = useState<{
     nama: string;
@@ -124,24 +125,60 @@ export default function AdminPage() {
     role: string;
     kode: string;
   }>({
-    nama: "Admin Transport",
-    email: "transport@jalalink.com",
+    nama: "Memuat...",
+    email: "Memuat...",
     role: "Admin Transport",
     kode: "TR-01"
   });
 
-  const isSuperAdmin = adminProfile.role === "Super Admin" || adminProfile.role === "admin" || adminProfile.role === "superadmin";
+  // 2. Logika penentuan Super Admin yang fleksibel (case-insensitive)
+  const currentRole = (adminProfile.role || "").toLowerCase();
+  const isSuperAdmin = currentRole === "superadmin" || currentRole === "admin" || currentRole === "super admin";
 
-  // 2. Baru panggil useEffect yang menggunakan variabel session
+  // 3. Fetch profil asli pengguna langsung dari tabel Supabase `profiles`
   useEffect(() => {
-    if (session) {
-      setAdminProfile({
-        nama: session.nama || "Admin Transport",
-        email: session.email || "transport@jalalink.com",
-        role: session.role === "superadmin" ? "Super Admin" : "Admin Transport",
-        kode: session.role === "superadmin" ? "ADM-01" : "TR-01"
-      });
+    async function loadRealProfile() {
+      try {
+        // Ambil data user yang sedang aktif dari Supabase Auth
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Query ke tabel profiles di Supabase berdasarkan UUID user
+          const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("nama, role")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (!error && profile) {
+            const userRole = profile.role || user.user_metadata?.role || "admintransport";
+            const userNama = profile.nama || user.user_metadata?.nama || user.email?.split("@")[0] || "Admin Transport";
+
+            setAdminProfile({
+              nama: userNama,
+              email: user.email || "transport@jalalink.com",
+              role: userRole,
+              kode: userRole.toLowerCase().includes("super") ? "ADM-01" : "TR-01"
+            });
+            return;
+          }
+        }
+
+        // Fallback jika menggunakan sesi lokal
+        if (session) {
+          setAdminProfile({
+            nama: session.nama || "Admin Transport",
+            email: session.email || "transport@jalalink.com",
+            role: session.role || "admintransport",
+            kode: session.role?.toLowerCase().includes("super") ? "ADM-01" : "TR-01"
+          });
+        }
+      } catch (err) {
+        console.error("Gagal memuat profil Supabase:", err);
+      }
     }
+
+    loadRealProfile();
   }, [session]);
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
