@@ -7,6 +7,12 @@ import { useSession, clearSession } from "@/lib/session";
 import { useStore, chatKey, type Chats } from "@/lib/store";
 import { FAQ_LIST, TARIF0 } from "@/lib/data";
 import { Home, SlidersHorizontal, LifeBuoy, ShieldAlert, Store, MapPin, Send, Check, X, Plus, Trash2, ChevronLeft, AlertTriangle, Search, FileText, ChevronDown, ChevronUp, AlertCircle, Building2, Truck, ShieldCheck, Eye, ExternalLink, User, LogOut, KeyRound, Camera, Lock, Shield, RefreshCw, Mail, Laptop } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
+);
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const ongkir = (flat: number, kg: number) => (kg <= 0 ? 0 : kg <= 1 ? flat : Math.round(flat + (kg - 1) * flat * 0.75));
