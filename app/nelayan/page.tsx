@@ -682,20 +682,23 @@ export default function NelayanPage() {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("nama")
+          .select("nama, area, email")
           .eq("id", user.id)
           .maybeSingle();
 
-        const namaReal = 
-          profile?.nama || 
-          user.user_metadata?.nama || 
-          user.user_metadata?.full_name || 
-          user.email?.split("@")[0] || 
-          "Nelayan";
+        let nelayanData = null;
+        if (profile?.nama) {
+          const { data: nData } = await supabase
+            .from("nelayan")
+            .select("*")
+            .ilike("nama", `%${profile.nama}%`)
+            .maybeSingle();
+          nelayanData = nData;
+        }
 
         setNelayanProfile({
-          nama: namaReal,
-          daerah: "Cilacap"
+          nama: nelayanData?.nama || profile?.nama || user.email?.split("@")[0] || "Nelayan",
+          daerah: nelayanData?.daerah || profile?.area || "Cilacap"
         });
       } catch (err) {
         console.error("Gagal mengambil profil nelayan:", err);
@@ -715,24 +718,23 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing & Stok Asli dari Supabase (Tabel listing/ikan)
+  // 2. Fetch Data Listing, Stok, dan Pesanan Asli dari Supabase (Berdasarkan Skema SQL)
   useEffect(() => {
     async function fetchDatabaseData() {
       try {
-        // Ambil data listing ikan dari database Supabase
         const { data: listingData, error: listingError } = await supabase
           .from("listing")
-          .select("*, ikan(nama_baku)");
+          .select("*, ikan(nama_baku), nelayan(nama)");
 
         if (!listingError && listingData && listingData.length > 0) {
           const formattedIkan = listingData.map((item: any) => ({
             id: item.id,
-            nama: item.ikan?.nama_baku || item.nama_ikan || "Ikan Tangkapan",
+            nama: item.ikan?.nama_baku || "Ikan Tangkapan",
             harga: item.harga_per_kg || 0,
             stok: item.stok_kg || 0,
             habis: item.status === "habis" || item.stok_kg === 0,
             sumber: "Web" as const,
-            waktu: item.updated_at ? new Date(item.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : now(),
+            waktu: item.tanggal_tangkap ? new Date(item.tanggal_tangkap).toLocaleDateString("id-ID") : now(),
             rating: 4.8,
             totalUlasan: 10,
             reviews: []
@@ -740,40 +742,22 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-        // Ambil data pesanan/transaksi asli dari database Supabase
-        const { data: transaksiData, error: transaksiError } = await supabase
-          .from("transaksi")
-          .select("*");
+        const { data: ordersData, error: ordersError } = await supabase
+          .from("orders")
+          .select("*, profiles(nama), listing(harga_per_kg, ikan(nama_baku))");
 
-        if (!transaksiError && transaksiData && transaksiData.length > 0) {
-          const formattedPesanan = transaksiData.map((trx: any) => ({
-            no: `JL-${trx.id}`,
-            teks: trx.deskripsi_pesanan || "Pesanan Ikan Segar",
-            pembeli: trx.nama_pembeli || "Pembeli JalaLink",
+        if (!ordersError && ordersData && ordersData.length > 0) {
+          const formattedPesanan = ordersData.map((ord: any) => ({
+            no: `JL-${ord.id}`,
+            teks: `${ord.jumlah_kg} kg ${ord.listing?.ikan?.nama_baku || "Ikan Segar"}`,
+            pembeli: ord.profiles?.nama || "Pembeli JalaLink",
             titik: "TPI Cilacap",
-            jadwal: "Hari ini",
-            totalHargaIkan: trx.total_harga || 0,
-            totalOngkirTransport: trx.ongkir || 0,
-            status: (trx.status_pesanan as StatusPesanan) || "Menunggu TPI"
+            jadwal: ord.tanggal_kirim || "Hari ini",
+            totalHargaIkan: (ord.jumlah_kg || 0) * (ord.listing?.harga_per_kg || 0),
+            totalOngkirTransport: (ord.jumlah_kg || 0) * (ord.ongkir_per_kg || 0),
+            status: (ord.status_pengiriman === "selesai" ? "Selesai" : "Menunggu TPI") as StatusPesanan
           }));
           setPesananList(formattedPesanan);
-        }
-
-        // Ambil data percakapan/chat asli dari database Supabase
-        const { data: chatData, error: chatError } = await supabase
-          .from("chat_pembeli")
-          .select("*");
-
-        if (!chatError && chatData && chatData.length > 0) {
-          const formattedConvs = chatData.map((c: any) => ({
-            id: c.id,
-            pembeli: c.nama_pembeli || "Pelanggan",
-            topik: c.topik || "Hasil Laut",
-            unread: c.unread || 0,
-            blocked: c.is_blocked || false,
-            msgs: c.messages || [{ me: false, text: c.pesan_terakhir || "Halo pak" }]
-          }));
-          setConvs(formattedConvs);
         }
       } catch (err) {
         console.error("Gagal mengambil data dari Supabase:", err);
@@ -803,7 +787,6 @@ export default function NelayanPage() {
     if (!h || h <= 0 || h === l.harga) return;
     setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, harga: h, sumber: "Web", waktu: now() } : x)));
     
-    // Update ke database Supabase
     await supabase.from("listing").update({ harga_per_kg: h }).eq("id", l.id);
 
     setLog((g) => [{ t: now(), teks: `Harga ${l.nama} diubah di web jadi ${rp(h)}` }, ...g]);
@@ -814,8 +797,7 @@ export default function NelayanPage() {
     if (stokBaru < 0 || stokBaru === l.stok) return;
     setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, stok: stokBaru, habis: stokBaru === 0, sumber: "Web", waktu: now() } : x)));
     
-    // Update ke database Supabase
-    await supabase.from("listing").update({ stok_kg: stokBaru, status: stokBaru === 0 ? "habis" : "tersedia" }).eq("id", l.id);
+    await supabase.from("listing").update({ stok_kg: stokBaru, status: stokBaru === 0 ? "habis" : "aktif" }).eq("id", l.id);
 
     setLog((g) => [{ t: now(), teks: `Stok ${l.nama} diubah di web menjadi ${stokBaru} kg` }, ...g]);
     flash(`Stok ${l.nama} diperbarui (${stokBaru} kg)`);
@@ -828,8 +810,7 @@ export default function NelayanPage() {
           const sisaStok = Math.max(0, item.stok - jumlahKg);
           setLog((g) => [{ t: now(), teks: `Pembeli checkout ${jumlahKg} kg ${item.nama}. Stok sisa ${sisaStok} kg` }, ...g]);
           
-          // Sinkronisasi update stok ke database Supabase
-          supabase.from("listing").update({ stok_kg: sisaStok, status: sisaStok === 0 ? "habis" : "tersedia" }).eq("id", ikanId).then();
+          supabase.from("listing").update({ stok_kg: sisaStok, status: sisaStok === 0 ? "habis" : "aktif" }).eq("id", ikanId).then();
 
           return { ...item, stok: sisaStok, habis: sisaStok === 0, waktu: now() };
         }
@@ -843,13 +824,14 @@ export default function NelayanPage() {
     const statusBaruHabis = !l.habis;
     setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, habis: statusBaruHabis, sumber: "Web", waktu: now() } : x)));
     
-    await supabase.from("listing").update({ status: statusBaruHabis ? "habis" : "tersedia" }).eq("id", l.id);
+    await supabase.from("listing").update({ status: statusBaruHabis ? "habis" : "aktif" }).eq("id", l.id);
   };
 
   const updateStatusPesanan = async (no: string, newStatus: StatusPesanan) => {
     setPesananList((prev) => prev.map((p) => (p.no === no ? { ...p, status: newStatus } : p)));
     const idTrx = no.replace("JL-", "");
-    await supabase.from("transaksi").update({ status_pesanan: newStatus }).eq("id", idTrx);
+    const dbStatus = newStatus === "Selesai" ? "selesai" : "dipesan";
+    await supabase.from("orders").update({ status_pengiriman: dbStatus }).eq("id", idTrx);
     flash(`Status ${no} diubah: ${newStatus}`);
   };
 
@@ -889,7 +871,7 @@ export default function NelayanPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h1 className="font-heading text-xl font-bold">Halo, {nelayanProfile?.nama || "Nelayan"}!</h1>
-                  <p className="text-xs text-ink/60">TPI Cilacap · Dermaga Utama</p>
+                  <p className="text-xs text-ink/60">TPI {nelayanProfile?.daerah || "Cilacap"} · Dermaga Utama</p>
                 </div>
                 
                 <div className="flex items-center justify-between rounded-2xl bg-surface p-3.5 border border-soft/40">
@@ -940,7 +922,7 @@ export default function NelayanPage() {
                     <Bell size={16} className="text-[#0E7C86]" />
                     Status Pesanan Masuk & TPI
                   </h2>
-                  <span className="text-[11px] text-ink/50">TPI Cilacap</span>
+                  <span className="text-[11px] text-ink/50">TPI {nelayanProfile?.daerah || "Cilacap"}</span>
                 </div>
 
                 <div className="space-y-2.5 md:hidden">
@@ -1183,7 +1165,7 @@ export default function NelayanPage() {
 
               <div className="flex items-center gap-3 rounded-xl bg-surface p-3 text-xs border border-soft/40">
                 <MapPin className="text-[#0E7C86]" size={18} />
-                <span><b>Titik Kumpul TPI:</b> TPI Cilacap, Area Dermaga Utama</span>
+                <span><b>Titik Kumpul TPI:</b> TPI {nelayanProfile?.daerah || "Cilacap"}, Area Dermaga Utama</span>
               </div>
 
               <button onClick={() => router.push("/login")} className="h-11 w-full rounded-xl border border-soft bg-white font-semibold text-ink">
