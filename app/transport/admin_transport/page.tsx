@@ -119,17 +119,17 @@ export default function AdminPage() {
   const [adminProfile, setAdminProfile] = useState<{
     nama: string;
     email: string;
-    role: "Super Admin" | "Admin Operational";
+    role: string;
     kode: string;
   }>({
-    nama: "Admin Utama",
-    email: "admin.jalalink@gmail.com",
-    role: "Super Admin",
-    kode: "ADM-01"
+    nama: "Admin Transport",
+    email: "transport@jalalink.com",
+    role: "Admin Transport",
+    kode: "TR-01"
   });
 
   const isSuperAdmin = adminProfile.role === "Super Admin";
-  const { session } = useSession(["admin", "superadmin"]);
+  const { session } = useSession(["admintransport", "transport", "admin", "superadmin"]);
   useEffect(() => {
     if (session) setAdminProfile((p) => ({ ...p, nama: session.nama, email: session.email, role: session.role === "superadmin" ? "Super Admin" : "Admin Operational" }));
   }, [session]);
