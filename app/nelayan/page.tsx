@@ -676,7 +676,7 @@ export default function NelayanPage() {
   const [selectedIkanReview, setSelectedIkanReview] = useState<Ikan | null>(null);
   const [nelayanProfile, setNelayanProfile] = useState<{ id?: number; nama: string; daerah: string } | null>(null);
 
-  // 1. Fetch Profil Nelayan dari tabel profiles dan hubungkan secara aman ke tabel nelayan
+  // 1. Fetch Profil Nelayan yang Sedang Login Sesuai Akun
   useEffect(() => {
     async function fetchNelayanProfile() {
       try {
@@ -685,7 +685,6 @@ export default function NelayanPage() {
 
         if (!user) return;
 
-        // Ambil data dari tabel profiles milik user yang sedang login
         const { data: profile } = await supabase
           .from("profiles")
           .select("nama, area, email")
@@ -694,13 +693,10 @@ export default function NelayanPage() {
 
         let nelayanData = null;
         if (profile?.nama) {
-          const searchName = profile.nama.trim();
-          const firstName = searchName.split(" ")[0];
-
           const { data: nData } = await supabase
             .from("nelayan")
             .select("*")
-            .or(`nama.ilike.%${searchName}%,nama.ilike.%${firstName}%`);
+            .or(`nama.ilike.%${profile.nama}%,nama.ilike.%${profile.nama.trim().split(" ")[0]}%`);
           
           if (nData && nData.length > 0) {
             nelayanData = nData[0];
@@ -737,11 +733,7 @@ export default function NelayanPage() {
     };
   }, []);
 
-<<<<<<< HEAD
   // 2. Fetch Data Listing (termasuk Telegram Input) & Pesanan Berdasarkan Nelayan Aktif
-=======
-  // 2. Fetch Data Listing & Pesanan berdasarkan ID atau Nama Nelayan yang Sedang Login Saja
->>>>>>> upstream/main
   useEffect(() => {
     async function fetchDatabaseData() {
       if (!nelayanProfile) return;
@@ -753,7 +745,6 @@ export default function NelayanPage() {
           .select("*");
 
         if (!listingError && listingData) {
-<<<<<<< HEAD
           // Ambil pula data relasi nama ikan & nelayan jika tersedia
           const { data: ikanRef } = await supabase.from("ikan").select("id, nama_baku");
           const { data: nelayanRef } = await supabase.from("nelayan").select("id, nama");
@@ -762,9 +753,6 @@ export default function NelayanPage() {
           const nelayanMap = new Map(nelayanRef?.map(n => [n.id, n.nama]));
 
           // FILTER EKSKLUSIF: Hanya listing milik Nelayan ini
-=======
-          // FILTER AKUN PRESISI: Hanya ambil data milik nelayan yang sedang aktif login
->>>>>>> upstream/main
           const filteredListing = listingData.filter((item: any) => {
             if (nelayanProfile.id && item.nelayan_id) {
               return item.nelayan_id === nelayanProfile.id;
@@ -773,16 +761,12 @@ export default function NelayanPage() {
             if (namaNelayanDb && nelayanProfile.nama) {
               const itemN = namaNelayanDb.trim().toLowerCase();
               const profileN = nelayanProfile.nama.trim().toLowerCase();
-              const profileFirst = profileN.split(" ")[0];
-              return itemN.includes(profileN) || profileN.includes(itemN) || itemN.includes(profileFirst);
+              return itemN.includes(profileN) || profileN.includes(itemN);
             }
             return true; // Jika data baru masuk dari Telegram, default tampilkan ke profil aktif
           });
 
-          // PENGAMAN (FALLBACK): Jika filter spesifik kosong tapi ada listing mentah tanpa nelayan_id yang pas, tampilkan agar tidak 0
-          const finalItems = filteredListing.length > 0 ? filteredListing : listingData.filter((item: any) => !item.nelayan_id);
-
-          const formattedIkan = finalItems.map((item: any) => ({
+          const formattedIkan = filteredListing.map((item: any) => ({
             id: item.id,
             nama: ikanMap.get(item.ikan_id) || item.nama_ikan || "Ikan Tangkapan Telegram",
             harga: item.harga_per_kg || 0,
@@ -797,11 +781,7 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-<<<<<<< HEAD
         // Ambil data orders yang dimiliki nelayan aktif
-=======
-        // Ambil data orders yang berelasi dengan profiles dan listing khusus nelayan ini
->>>>>>> upstream/main
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
           .select("*");
