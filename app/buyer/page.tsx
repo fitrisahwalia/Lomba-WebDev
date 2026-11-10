@@ -233,41 +233,6 @@ const FAQ_LIST: FAQItem[] = [
   }
 ];
 
-const SPECIFIC_REVIEWS: Record<number, ReviewItem[]> = {
-  1: [
-    { id: 101, user: "Budi S.", rating: 5, date: "Kemarin", comment: "Kakap merah Pak Wayan tebal dan manis, dibakar bumbu kecap mantap!", mediaUrl: "/logo.png", mediaType: "image" },
-    { id: 102, user: "Siti A.", rating: 4, date: "3 hari lalu", comment: "Segar pas nyampe Jatinangor, esnya masih utuh." }
-  ],
-  2: [
-    { id: 201, user: "Rina M.", rating: 5, date: "2 hari lalu", comment: "Tongkol Pak Darmo juara, gak amis sama sekali dibuat balado." },
-    { id: 202, user: "Eko P.", rating: 4, date: "5 hari lalu", comment: "Ukuran sesuai, pengiriman subuh tepat waktu." }
-  ]
-};
-
-const RAW: [string, string, string, number, number, number, number, string, string, string, number, number, string[]][] = [
-  ["Kakap Merah", "Pak Wayan", "Cilacap", 65000, 100, 2, 8000, "Besok 06.00 WIB", "07.00 - 10.00 WIB", "05.30 WIB", 4.8, 24, ["kakap"]],
-  ["Tongkol Segar", "Pak Darmo", "Pangandaran", 32000, 120, 2, 8000, "Besok 05.30 WIB", "07.00 - 10.00 WIB", "05.10 WIB", 4.7, 40, ["tongkol"]],
-  ["Cakalang", "Pak Hasan", "Sukabumi", 36000, 90, 2, 9000, "Besok 06.30 WIB", "07.30 - 10.30 WIB", "05.20 WIB", 4.6, 18, ["tongkol kecil", "skipjack"]],
-  ["Tuna Sirip Kuning", "Pak Darmo", "Pangandaran", 78000, 60, 3, 8000, "Besok 05.30 WIB", "07.00 - 10.00 WIB", "05.00 WIB", 4.9, 31, ["tuna"]],
-  ["Kembung Segar", "Bu Sari", "Indramayu", 28000, 150, 3, 7000, "Hari ini 15.00 WIB", "16.00 - 18.00 WIB", "04.50 WIB", 4.8, 55, ["banyar"]],
-  ["Tenggiri", "Pak Joko", "Cirebon", 72000, 70, 2, 7500, "Besok 06.00 WIB", "07.00 - 10.00 WIB", "05.15 WIB", 4.7, 22, ["spanish mackerel"]],
-  ["Bawal Putih", "Pak Rahmat", "Pelabuhan Ratu", 85000, 45, 2, 9000, "Besok 07.00 WIB", "08.00 - 11.00 WIB", "05.40 WIB", 4.9, 15, ["bawal"]],
-  ["Layur", "Pak Eman", "Pelabuhan Ratu", 38000, 80, 2, 9000, "Besok 07.00 WIB", "08.00 - 11.00 WIB", "05.25 WIB", 4.5, 12, ["beltfish"]],
-  ["Gurame Laut", "Pak Wayan", "Cilacap", 48000, 85, 2, 8000, "Besok 06.00 WIB", "07.00 - 10.00 WIB", "05.35 WIB", 4.6, 19, ["gurame"]],
-  ["Udang Vaname", "Bu Ani", "Indramayu", 95000, 50, 1, 7000, "Hari ini 15.00 WIB", "16.00 - 18.00 WIB", "04.30 WIB", 4.9, 42, ["udang"]],
-];
-
-const INIT: Listing[] = RAW.map(([nama, nelayan, daerah, harga, stok, min, ongkirFlat, jamTibaHub, jamAntarRumah, jam, rating, ulasanCount, alias], i) => {
-  const id = i + 1;
-  return {
-    id, nama, nelayan, daerah, harga, stok, min, ongkirFlat, jamTibaHub, jamAntarRumah, jam, rating, ulasanCount, alias,
-    reviews: SPECIFIC_REVIEWS[id] || [],
-    desc: i === 0
-      ? "Daging tebal, padat, dan memiliki tekstur kenyal alami dengan rasa gurih khas ikan laut segar. Sangat ideal diolah menjadi menu kuah kuning, tim jahe, gulai, atau dibakar dengan bumbu kecap. Dijamin tanpa bahan pengawet dan langsung masuk kotak es higienis saat mendarat di pelabuhan."
-      : `${nama} kualitas premium dari ${nelayan} di perairan ${daerah}. Tekstur daging segar tanpa pengawet, siap diolah untuk berbagai hidangan lezat keluarga.`,
-  };
-});
-
 const KATEGORI = ["Semua", "Kakap", "Tongkol", "Tuna", "Cakalang", "Kembung", "Tenggiri", "Bawal", "Udang"];
 const match = (l: Listing, s: string) => [l.nama, l.nelayan, l.daerah, ...l.alias].some((x) => x.toLowerCase().includes(s.toLowerCase()));
 
@@ -296,41 +261,6 @@ type Order = {
 };
 type Metode = "QRIS" | "Transfer";
 type Msg = { me: boolean; text: string };
-
-const INITIAL_ORDERS: Order[] = [
-  {
-    no: "JL-1002",
-    itemsSummary: "2 kg Kakap Merah, 1 kg Udang Vaname",
-    items: [
-      { nama: "Kakap Merah", qty: 2, harga: 65000, nelayan: "Pak Wayan" },
-      { nama: "Udang Vaname", qty: 1, harga: 95000, nelayan: "Bu Ani" }
-    ],
-    totalIkan: 225000,
-    totalOngkir: 15000,
-    status: "Sedang Diantar",
-    kurirNama: "Ahmad Subagja",
-    kurirPlat: "D 4512 AB",
-    bayar: "QRIS",
-    tanggal: "Hari ini, 07:15 WIB"
-  },
-  {
-    no: "JL-1001",
-    itemsSummary: "2 kg Tongkol Segar",
-    items: [
-      { nama: "Tongkol Segar", qty: 2, harga: 32000, nelayan: "Pak Darmo" }
-    ],
-    totalIkan: 64000,
-    totalOngkir: 8000,
-    status: "Selesai",
-    kurirNama: "Dedi Setiadi",
-    kurirPlat: "D 3311 BK",
-    ratingPesanan: 5,
-    ratingToko: 5,
-    ratingKurir: 5,
-    bayar: "Transfer",
-    tanggal: "Kemarin, 08:30 WIB"
-  }
-];
 
 function FishArt({ className = "" }: { className?: string }) {
   return (
@@ -473,7 +403,7 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 pb-28 md:pb-10">
-      <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Halo, {userName}!</h1>
+      <h1 className="font-heading text-2xl font-bold text-ink md:text-3xl">Halo, {userName || "Pembeli"}!</h1>
 
       <section className="rounded-3xl bg-surface p-6 md:p-10 shadow-sm border border-soft/40">
         <div className="flex items-start justify-between gap-4">
@@ -638,7 +568,7 @@ function FisherProfileView({ fisherName, listings, onBack, onOpenDetail, onChat 
 }
 
 function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpenFisher }: { l: Listing; onBack: () => void; onAdd: (qty: number, langsungBeli: boolean) => void; fav: boolean; onFav: () => void; onChat: () => void; onOpenReview: () => void; onOpenFisher: (fisher: string) => void }) {
-  const [qty, setQty] = useState(l.min);
+  const [qty, setQty] = useState(l.min || 1);
   const ongkirEstimasi = calculateTotalOngkir(l.ongkirFlat, qty);
 
   return (
@@ -696,7 +626,7 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
           <div className="flex items-center justify-between rounded-2xl bg-surface p-4 border border-soft/60">
             <span className="font-sub font-semibold text-ink text-base">Atur Jumlah Pembelian</span>
             <div className="flex h-11 items-center gap-4 rounded-xl bg-white px-4 text-brand border border-soft/80 shadow-sm">
-              <button onClick={() => setQty(Math.max(l.min, qty - 1))} aria-label="Kurang"><Minus size={16} /></button>
+              <button onClick={() => setQty(Math.max(l.min || 1, qty - 1))} aria-label="Kurang"><Minus size={16} /></button>
               <span className="font-heading text-lg font-bold text-ink">{qty} <span className="text-xs font-normal text-ink/60">kg</span></span>
               <button onClick={() => setQty(Math.min(l.stok, qty + 1))} aria-label="Tambah"><Plus size={16} /></button>
             </div>
@@ -796,9 +726,9 @@ function CartSheet({ open, onClose, cartItems, listings, userAddress, onQtyChang
   if (!open) return null;
 
   const enrichedCart = cartItems.map((item) => {
-    const l = listings.find((x) => x.id === item.id)!;
-    return { ...item, listing: l };
-  });
+    const l = listings.find((x) => x.id === item.id);
+    return { ...item, listing: l! };
+  }).filter(item => Boolean(item.listing));
 
   const checkedItems = enrichedCart.filter((item) => item.checked);
   const totalIkanPrice = checkedItems.reduce((sum, item) => sum + (item.listing.harga * item.qty), 0);
@@ -862,7 +792,7 @@ function CartSheet({ open, onClose, cartItems, listings, userAddress, onQtyChang
                       <p className="text-sm font-bold text-brand mt-0.5">{rp(itemTotalIkan)}</p>                      
                       <div className="flex items-center justify-between pt-2">
                         <div className="flex items-center gap-3 rounded-xl border border-brand bg-white px-2 py-1 text-brand">
-                          <button onClick={() => onQtyChange(item.id, Math.max(l.min, item.qty - 1))} aria-label="Kurang"><Minus size={14} /></button>
+                          <button onClick={() => onQtyChange(item.id, Math.max(l.min || 1, item.qty - 1))} aria-label="Kurang"><Minus size={14} /></button>
                           <span className="font-sub text-xs font-bold text-ink">{item.qty} kg</span>
                           <button onClick={() => onQtyChange(item.id, Math.min(l.stok, item.qty + 1))} aria-label="Tambah"><Plus size={14} /></button>
                         </div>
@@ -1866,7 +1796,6 @@ function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productNa
   );
 }
 
-// Modal Konfirmasi Hapus Akun
 function DeleteAccountModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1898,86 +1827,158 @@ function DeleteAccountModal({ onClose, onConfirm }: { onClose: () => void; onCon
 export default function Page() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
-  const [listings, setListings] = useState(INIT);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [openId, setOpenId] = useState<number | null>(null);
   
   const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
-  nama: "",
-  email: "",
-  phone: "",
-  jalanNo: "Jl. Melati No. 12",
-  rt: "",
-  rw: "",
-  kotaKecamatan: "Jatinangor, Sumedang",
-  patokan: "Pagar hitam depan warung kelontong",
-  lat: -6.9312,
-  lng: 107.7735
-});
-
-
-useEffect(() => {
-  async function loadBuyerProfile() {
-    try {
-      // Ambil user dari Supabase Auth
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        // Ambil data nama & no_hp dari tabel profiles
-        const { data: dbProfile } = await supabase
-          .from("profiles")
-          .select("nama, no_hp")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        setUserProfile((prev) => ({
-          ...prev,
-          nama: dbProfile?.nama || user.user_metadata?.nama || "Pembeli",
-          email: user.email || "",
-          phone: dbProfile?.no_hp || user.user_metadata?.no_hp || "+62 812-3456-7890",
-        }));
-      }
-    } catch (err) {
-      console.error("Gagal memuat profil pembeli:", err);
-    }
-  }
-
-  loadBuyerProfile();
-  }, []);
+    nama: "",
+    email: "",
+    phone: "",
+    jalanNo: "Jl. Melati No. 12",
+    rt: "",
+    rw: "",
+    kotaKecamatan: "Jatinangor, Sumedang",
+    patokan: "Pagar hitam depan warung kelontong",
+    lat: -6.9312,
+    lng: 107.7735
+  });
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isEditAddressOpen, setIsEditAddressOpen] = useState(false);
   const [isHelpCenterOpen, setIsHelpCenterOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // TIKET BANTUAN FAQ
-  const [helpTickets, setHelpTickets] = useState<HelpTicket[]>([
-    {
-      id: "#TCK-8821",
-      topik: "Kendala Pesanan & Ikan",
-      subjek: "Pesanan JL-1002 Belum Tiba",
-      status: "Sedang Diproses",
-      tanggal: "Hari ini",
-      messages: [
-        { me: true, text: "Halo admin, pesanan JL-1002 statusnya sedang diantar dari pagi tapi belum sampai." },
-        { me: false, text: "Halo Ushi! Tim CS kami sedang mengonfirmasi posisi kurir Ahmad di lapangan. Ikan Anda dipastikan tetap aman dalam cold box beres." }
-      ]
-    }
-  ]);
-
+  const [helpTickets, setHelpTickets] = useState<HelpTicket[]>([]);
   const [activeTicketChatId, setActiveTicketChatId] = useState<string | null>(null);
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [toast, setToast] = useState("");
   const [favs, setFavs] = useState<number[]>([]);
   const [chatWith, setChatWith] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Record<string, Msg[]>>({});
   const [reviewForOrder, setReviewForOrder] = useState<string | null>(null);
   const [isDetailReviewOpen, setIsDetailReviewOpen] = useState(false);
+
+  // LOAD REAL DATA DARI SUPABASE
+  useEffect(() => {
+    async function loadDataFromSupabase() {
+      try {
+        // 1. Profil Pembeli
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: dbProfile } = await supabase
+            .from("profiles")
+            .select("nama, no_hp, jalan_no, kota_kecamatan, patokan, lat, lng")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          setUserProfile((prev) => ({
+            ...prev,
+            nama: dbProfile?.nama || user.user_metadata?.nama || "Pembeli",
+            email: user.email || "",
+            phone: dbProfile?.no_hp || user.user_metadata?.no_hp || "+62 812-3456-7890",
+            jalanNo: dbProfile?.jalan_no || prev.jalanNo,
+            kotaKecamatan: dbProfile?.kota_kecamatan || prev.kotaKecamatan,
+            patokan: dbProfile?.patokan || prev.patokan,
+            lat: dbProfile?.lat ?? prev.lat,
+            lng: dbProfile?.lng ?? prev.lng,
+          }));
+
+          // 2. Load Tiket Bantuan CS
+          const { data: dbTickets } = await supabase
+            .from("help_tickets")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+
+          if (dbTickets) {
+            setHelpTickets(
+              dbTickets.map((t) => ({
+                id: t.ticket_no || `#TCK-${t.id}`,
+                topik: t.topik || "Kendala Pesanan & Ikan",
+                subjek: t.subjek || "",
+                status: t.status === "Selesai" ? "Selesai" : "Sedang Diproses",
+                tanggal: t.tanggal || "Baru saja",
+                messages: typeof t.messages === "string" ? JSON.parse(t.messages) : (t.messages || []),
+              }))
+            );
+          }
+        }
+
+        // 3. Load Katalog Ikan & Reviews
+        const { data: dbIkan } = await supabase.from("ikan").select("*");
+        const { data: dbReviews } = await supabase.from("reviews").select("*");
+
+        if (dbIkan) {
+          const mappedListings: Listing[] = dbIkan.map((i) => {
+            const fishReviews: ReviewItem[] = (dbReviews || [])
+              .filter((r) => r.ikan_id === i.id)
+              .map((r) => ({
+                id: r.id,
+                user: r.user_nama || "Pembeli",
+                rating: r.rating || 5,
+                date: r.created_at ? new Date(r.created_at).toLocaleDateString("id-ID") : "Baru saja",
+                comment: r.comment || "",
+                mediaUrl: r.media_url,
+                mediaType: r.media_type,
+              }));
+
+            return {
+              id: i.id,
+              nama: i.nama || "",
+              nelayan: i.nelayan || "Pak Nelayan",
+              daerah: i.daerah || "Pesisir",
+              harga: i.harga || 0,
+              stok: i.stok || 0,
+              min: i.min || 1,
+              ongkirFlat: i.ongkir_flat || i.ongkirFlat || 8000,
+              jamTibaHub: i.jam_tiba_hub || i.jamTibaHub || "Besok 06.00 WIB",
+              jamAntarRumah: i.jam_antar_rumah || i.jamAntarRumah || "07.00 - 10.00 WIB",
+              jam: i.jam || "05.30 WIB",
+              rating: i.rating || 5,
+              ulasanCount: i.ulasan_count || fishReviews.length,
+              alias: typeof i.alias === "string" ? JSON.parse(i.alias) : (i.alias || []),
+              desc: i.desc || i.deskripsi || "Ikan segar tangkapan nelayan lokal.",
+              reviews: fishReviews,
+            };
+          });
+
+          setListings(mappedListings);
+        }
+
+        // 4. Load Pesanan Pembeli
+        const { data: dbOrders } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+        if (dbOrders) {
+          setOrders(
+            dbOrders.map((o) => ({
+              no: o.no || `JL-${o.id}`,
+              itemsSummary: o.items_summary || o.itemsSummary || "",
+              items: typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []),
+              totalIkan: o.total_ikan || o.totalIkan || 0,
+              totalOngkir: o.total_ongkir || o.totalOngkir || 0,
+              status: o.status || "Sedang Diantar",
+              kurirNama: o.kurir_nama || o.kurirNama,
+              kurirPlat: o.kurir_plat || o.kurirPlat,
+              ratingPesanan: o.rating_pesanan || o.ratingPesanan,
+              ratingToko: o.rating_toko || o.ratingToko,
+              ratingKurir: o.rating_kurir || o.ratingKurir,
+              bayar: o.bayar,
+              tanggal: o.tanggal || "Baru saja",
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Gagal sinkronisasi Supabase database:", err);
+      }
+    }
+
+    loadDataFromSupabase();
+  }, []);
 
   const fishers = useMemo(() => Array.from(new Map(listings.map((l) => [l.nelayan, { nama: l.nelayan, daerah: l.daerah }])).values()), [listings]);
   const used = Object.values(msgs).flat().filter((m) => m.me).length;
@@ -1994,16 +1995,24 @@ useEffect(() => {
     window.scrollTo({ top: 0 }); 
   };
 
-  // KELUAR -> DIRECT TO LOGIN
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     flash("Berhasil keluar. Mengalihkan ke halaman login...");
     setTimeout(() => {
       router.push("/login");
     }, 800);
   };
 
-  // HAPUS AKUN -> CONFIRM -> DIRECT TO LOGIN
-  const handleConfirmDeleteAccount = () => {
+  const handleConfirmDeleteAccount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("profiles").delete().eq("id", user.id);
+        await supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.error(e);
+    }
     setIsDeleteModalOpen(false);
     flash("Akun Anda berhasil dihapus dari sistem.");
     setTimeout(() => {
@@ -2034,46 +2043,57 @@ useEffect(() => {
     setTimeout(() => setMsgs((m) => ({ ...m, [who]: [...(m[who] ?? []), { me: false, text: reply }] })), 900);
   };
 
-  const sendTicketMsg = (text: string) => {
+  const sendTicketMsg = async (text: string) => {
     if (!activeTicketChatId) return;
-    setHelpTickets((prev) => prev.map((t) => {
-      if (t.id === activeTicketChatId) {
-        return {
-          ...t,
-          messages: [...t.messages, { me: true, text }]
-        };
-      }
-      return t;
-    }));
+    
+    const targetTicket = helpTickets.find((t) => t.id === activeTicketChatId);
+    if (!targetTicket) return;
 
-    setTimeout(() => {
-      setHelpTickets((prev) => prev.map((t) => {
-        if (t.id === activeTicketChatId) {
-          return {
-            ...t,
-            messages: [...t.messages, { me: false, text: "Terima kasih atas rinciannya. Tim Admin sedang menindaklanjuti tiket ini." }]
-          };
-        }
-        return t;
-      }));
+    const newMsgs = [...targetTicket.messages, { me: true, text }];
+    
+    setHelpTickets((prev) => prev.map((t) => (t.id === activeTicketChatId ? { ...t, messages: newMsgs } : t)));
+
+    await supabase.from("help_tickets").update({ messages: JSON.stringify(newMsgs) }).eq("ticket_no", activeTicketChatId);
+
+    setTimeout(async () => {
+      const replyMsgs = [...newMsgs, { me: false, text: "Terima kasih atas rinciannya. Tim Admin sedang menindaklanjuti tiket ini." }];
+      setHelpTickets((prev) => prev.map((t) => (t.id === activeTicketChatId ? { ...t, messages: replyMsgs } : t)));
+      await supabase.from("help_tickets").update({ messages: JSON.stringify(replyMsgs) }).eq("ticket_no", activeTicketChatId);
     }, 1000);
   };
 
-  const handleCreateTicket = (topik: string, subjek: string, pesan: string) => {
+  const handleCreateTicket = async (topik: string, subjek: string, pesan: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
     const newId = `#TCK-${Math.floor(1000 + Math.random() * 9000)}`;
+    const initialMsgs: Msg[] = [
+      { me: true, text: pesan },
+      { me: false, text: `Halo ${userProfile.nama}, tiket ${newId} berhasil dibuat. Tim CS JalaLink akan membalas segera.` }
+    ];
+
     const newTicket: HelpTicket = {
       id: newId,
       topik,
       subjek,
       status: "Sedang Diproses",
       tanggal: "Hari ini",
-      messages: [
-        { me: true, text: pesan },
-        { me: false, text: `Halo ${userProfile.nama}, tiket ${newId} berhasil dibuat. Tim CS JalaLink akan membalas segera.` }
-      ]
+      messages: initialMsgs,
     };
+
     setHelpTickets((prev) => [newTicket, ...prev]);
     setActiveTicketChatId(newId);
+
+    if (user) {
+      await supabase.from("help_tickets").insert([{
+        user_id: user.id,
+        ticket_no: newId,
+        topik,
+        subjek,
+        status: "Sedang Diproses",
+        tanggal: "Hari ini",
+        messages: JSON.stringify(initialMsgs)
+      }]);
+    }
+
     flash(`Tiket ${newId} berhasil dibuat`);
   };
   
@@ -2106,7 +2126,7 @@ useEffect(() => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const checkout = (bayar: Metode, checkedItemsList: { listing: Listing; qty: number }[], totalIkan: number, totalOngkir: number) => {
+  const checkout = async (bayar: Metode, checkedItemsList: { listing: Listing; qty: number }[], totalIkan: number, totalOngkir: number) => {
     const summary = checkedItemsList.map(i => `${i.qty} kg ${i.listing.nama}`).join(", ");
     const itemsDetail: OrderItem[] = checkedItemsList.map(i => ({
       nama: i.listing.nama,
@@ -2115,8 +2135,9 @@ useEffect(() => {
       nelayan: i.listing.nelayan,
     }));
     
-    setOrders((o) => [{
-      no: `JL-${1001 + o.length}`,
+    const newOrderNo = `JL-${1001 + orders.length}`;
+    const newOrder: Order = {
+      no: newOrderNo,
       itemsSummary: summary,
       items: itemsDetail,
       totalIkan,
@@ -2126,7 +2147,34 @@ useEffect(() => {
       kurirPlat: "D 4512 AB",
       bayar,
       tanggal: "Hari ini"
-    }, ...o]);
+    };
+
+    setOrders((o) => [newOrder, ...o]);
+
+    // Simpan ke Supabase Database
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("orders").insert([{
+        user_id: user?.id,
+        no: newOrderNo,
+        items_summary: summary,
+        items: JSON.stringify(itemsDetail),
+        total_ikan: totalIkan,
+        total_ongkir: totalOngkir,
+        status: "Sedang Diantar",
+        kurir_nama: "Ahmad Subagja",
+        kurir_plat: "D 4512 AB",
+        bayar,
+        tanggal: "Hari ini"
+      }]);
+
+      for (const item of checkedItemsList) {
+        const nextStok = item.listing.stok - item.qty;
+        await supabase.from("ikan").update({ stok: nextStok }).eq("id", item.listing.id);
+      }
+    } catch (e) {
+      console.error("Gagal simpan order ke Supabase:", e);
+    }
 
     setListings((ls) => ls.map((x) => {
       const found = checkedItemsList.find(c => c.listing.id === x.id);
@@ -2137,6 +2185,27 @@ useEffect(() => {
     setCartOpen(false); 
     go("pesanan"); 
     flash("Pesanan berhasil dibuat");
+  };
+
+  const handleUpdateProfile = async (updated: UserProfile) => {
+    setUserProfile(updated);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("profiles").update({
+          nama: updated.nama,
+          no_hp: updated.phone,
+          jalan_no: updated.jalanNo,
+          kota_kecamatan: updated.kotaKecamatan,
+          patokan: updated.patokan,
+          lat: updated.lat,
+          lng: updated.lng
+        }).eq("id", user.id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    flash("Profil berhasil diperbarui");
   };
 
   const currentTicket = helpTickets.find((t) => t.id === activeTicketChatId);
@@ -2189,7 +2258,11 @@ useEffect(() => {
           orders={orders} 
           onBrowse={() => go("home")} 
           onReview={setReviewForOrder} 
-          onDone={(no) => { setOrders((os) => os.map((o) => (o.no === no ? { ...o, status: "Selesai" } : o))); setReviewForOrder(no); }} 
+          onDone={async (no) => { 
+            setOrders((os) => os.map((o) => (o.no === no ? { ...o, status: "Selesai" } : o))); 
+            await supabase.from("orders").update({ status: "Selesai" }).eq("no", no);
+            setReviewForOrder(no); 
+          }} 
         />
       )}
 
@@ -2245,10 +2318,7 @@ useEffect(() => {
         <EditProfileSheet 
           user={userProfile} 
           onClose={() => setIsEditProfileOpen(false)} 
-          onSave={(updated) => {
-            setUserProfile(updated);
-            flash("Profil berhasil diperbarui");
-          }} 
+          onSave={handleUpdateProfile} 
         />
       )}
 
@@ -2257,7 +2327,7 @@ useEffect(() => {
           user={userProfile}
           onClose={() => setIsEditAddressOpen(false)} 
           onSave={(updatedFields) => {
-            setUserProfile((prev) => ({ ...prev, ...updatedFields }));
+            handleUpdateProfile({ ...userProfile, ...updatedFields });
             flash("Alamat pengiriman & titik lokasi berhasil diperbarui");
           }} 
         />
@@ -2275,9 +2345,25 @@ useEffect(() => {
           productName={detail.nama} 
           fisherName={detail.nelayan} 
           onClose={() => setIsDetailReviewOpen(false)} 
-          onSubmit={(rPesanan, rToko, rKurir, note, mediaUrl, mediaType) => {
+          onSubmit={async (rPesanan, rToko, rKurir, note, mediaUrl, mediaType) => {
             const newRev: ReviewItem = { id: Date.now(), user: userProfile.nama, rating: rPesanan, date: "Baru saja", comment: note, mediaUrl, mediaType };
-            setListings((ls) => ls.map((x) => x.id === detail.id ? { ...x, rating: Number(((x.rating * x.ulasanCount + rPesanan) / (x.ulasanCount + 1)).toFixed(1)), ulasanCount: x.ulasanCount + 1, reviews: [newRev, ...x.reviews] } : x));
+            
+            // Simpan Review ke Database
+            await supabase.from("reviews").insert([{
+              ikan_id: detail.id,
+              user_nama: userProfile.nama,
+              rating: rPesanan,
+              comment: note,
+              media_url: mediaUrl,
+              media_type: mediaType
+            }]);
+
+            const nextCount = detail.ulasanCount + 1;
+            const nextRating = Number(((detail.rating * detail.ulasanCount + rPesanan) / nextCount).toFixed(1));
+            
+            await supabase.from("ikan").update({ rating: nextRating, ulasan_count: nextCount }).eq("id", detail.id);
+
+            setListings((ls) => ls.map((x) => x.id === detail.id ? { ...x, rating: nextRating, ulasanCount: nextCount, reviews: [newRev, ...x.reviews] } : x));
             flash("Terima kasih! Ulasanmu berhasil dikirim.");
           }} 
         />
@@ -2288,8 +2374,9 @@ useEffect(() => {
           productName={orders.find((o) => o.no === reviewForOrder)?.itemsSummary ?? "Ikan"} 
           fisherName={orders.find((o) => o.no === reviewForOrder)?.items[0]?.nelayan ?? "Nelayan"} 
           onClose={() => setReviewForOrder(null)} 
-          onSubmit={(rPesanan, rToko, rKurir) => {
+          onSubmit={async (rPesanan, rToko, rKurir) => {
             setOrders((os) => os.map((o) => (o.no === reviewForOrder ? { ...o, ratingPesanan: rPesanan, ratingToko: rToko, ratingKurir: rKurir } : o)));
+            await supabase.from("orders").update({ rating_pesanan: rPesanan, rating_toko: rToko, rating_kurir: rKurir }).eq("no", reviewForOrder);
             flash("Terima kasih atas ulasan lengkapmu!");
           }} 
         />
