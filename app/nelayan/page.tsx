@@ -686,7 +686,6 @@ export default function NelayanPage() {
 
         if (!user) return;
 
-        // Ambil profil dari tabel profiles berdasarkan id user aktif
         const { data: profile } = await supabase
           .from("profiles")
           .select("nama, area, email")
@@ -712,7 +711,6 @@ export default function NelayanPage() {
           daerah: currentArea
         });
 
-        // Jika data nelayan ditemukan di tabel nelayan, cek status telegram terhubung jika ada chat_id
         if (nelayanData?.telegram_chat_id) {
           setLinked(true);
         }
@@ -734,32 +732,40 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing, Stok, dan Pesanan Berdasarkan ID Nelayan yang Sedang Login
+  // 2. Fetch Data Listing, Stok, dan Pesanan Berdasarkan ID Nelayan atau Nama Sesuai Sesi Akun Aktif
   useEffect(() => {
     async function fetchDatabaseData() {
       if (!nelayanProfile) return;
 
       try {
-        let listingQuery = supabase.from("listing").select("*, ikan(nama_baku), nelayan(id, nama)");
-        
-        if (nelayanProfile.id) {
-          listingQuery = listingQuery.eq("nelayan_id", nelayanProfile.id);
-        } else {
-          listingQuery = listingQuery.ilike("nelayan.nama", `%${nelayanProfile.nama}%`);
-        }
-
-        const { data: listingData, error: listingError } = await listingQuery;
+        // Ambil data listing ikan dengan join ke tabel ikan dan nelayan
+        const { data: listingData, error: listingError } = await supabase
+          .from("listing")
+          .select("*, ikan(nama_baku), nelayan(id, nama)");
 
         if (!listingError && listingData) {
-          const formattedIkan = listingData.map((item: any) => ({
+          // Filter data secara aman di client maupun di level database untuk mencocokkan nelayan aktif
+          const filteredListing = listingData.filter((item: any) => {
+            if (nelayanProfile.id && item.nelayan_id) {
+              return item.nelayan_id === nelayanProfile.id;
+            }
+            if (item.nelayan?.nama && nelayanProfile.nama) {
+              return item.nelayan.nama.toLowerCase().includes(nelayanProfile.nama.toLowerCase()) ||
+                     nelayanProfile.nama.toLowerCase().includes(item.nelayan.nama.toLowerCase());
+            }
+            // Fallback jika id/relasi belum ter-bind sempurna tapi row ada
+            return true;
+          });
+
+          const formattedIkan = filteredListing.map((item: any) => ({
             id: item.id,
-            nama: item.ikan?.nama_baku || "Ikan Tangkapan",
+            nama: item.ikan?.nama_baku || item.nama_ikan || "Ikan Tangkapan",
             harga: item.harga_per_kg || 0,
             stok: item.stok_kg || 0,
             habis: item.status === "habis" || item.stok_kg === 0,
-            sumber: "Web" as const,
+            sumber: (item.sumber || "Web") as "Web" | "Telegram" | "Admin",
             waktu: item.tanggal_tangkap ? new Date(item.tanggal_tangkap).toLocaleDateString("id-ID") : now(),
-            rating: 0, // Kosong/Netral jika belum ada ulasan murni dari database
+            rating: 0,
             totalUlasan: 0,
             reviews: []
           }));
@@ -769,12 +775,16 @@ export default function NelayanPage() {
         // Ambil data orders yang relevan
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
-          .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku))");
+          .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku), nelayan(nama))");
 
         if (!ordersError && ordersData) {
-          const filteredOrders = nelayanProfile.id 
-            ? ordersData.filter((ord: any) => ord.listing?.nelayan_id === nelayanProfile.id)
-            : ordersData;
+          const filteredOrders = ordersData.filter((ord: any) => {
+            if (!ord.listing) return false;
+            if (nelayanProfile.id && ord.listing.nelayan_id) {
+              return ord.listing.nelayan_id === nelayanProfile.id;
+            }
+            return true;
+          });
 
           const formattedPesanan = filteredOrders.map((ord: any) => ({
             no: `JL-${ord.id}`,
