@@ -1,6 +1,5 @@
 "use client";
 // app/transport/admin/page.tsx — Admin Transport: kelola tim kurir/supir, rute, pesanan, dan keuangan armada.
-// Terhubung langsung ke Supabase Database real-time (Data dummy dihapus).
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Home, ClipboardList, Users, Wallet, User, MapPin, Check, X, Plus, Copy, AlertTriangle, LogOut, UserPlus, Truck, RefreshCw } from "lucide-react";
@@ -14,7 +13,7 @@ const supabase = createClient(
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const PT = "CV Bahari Cold Chain";
-const FEE = 10; // % fee platform atas ongkir (ditetapkan super admin JalaLink)
+const FEE = 10;
 type Tab = "beranda" | "pesanan" | "tim" | "uang" | "akun";
 type Anggota = { id: string | number; nama: string; peran: "Supir" | "Kurir"; email: string; kendaraan: string; area: string; aktif: boolean };
 type Lamaran = { id: string | number; nama: string; peran: "Supir" | "Kurir"; pengalaman: string; kendaraan: string; area: string; status: "Baru" | "Disetujui" | "Ditolak" };
@@ -43,7 +42,6 @@ const NAV: { k: Tab; label: string; Icon: typeof Home }[] = [
   { k: "beranda", label: "Beranda", Icon: Home }, { k: "pesanan", label: "Pesanan", Icon: ClipboardList }, { k: "tim", label: "Tim", Icon: Users }, { k: "uang", label: "Keuangan", Icon: Wallet }, { k: "akun", label: "Akun", Icon: User },
 ];
 
-/* ---- sheet buat akun kurir/supir ---- */
 function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; onClose: () => void; onCreate: (a: Omit<Anggota, "id" | "aktif">, pw: string) => Promise<boolean> }) {
   const [f, setF] = useState({ nama: prefill?.nama ?? "", peran: (prefill?.peran ?? "Kurir") as "Supir" | "Kurir", email: "", kendaraan: prefill?.kendaraan ?? "", area: prefill?.area ?? "" });
   const [res, setRes] = useState<{ email: string; pw: string } | null>(null);
@@ -87,7 +85,6 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
   );
 }
 
-/* ---- baris tarif ---- */
 function TarifRow({ t, onSave }: { t: Tarif; onSave: (p: Partial<Tarif>) => void }) {
   const [v, setV] = useState(""); const [alasan, setAlasan] = useState("");
   const n = Number(v), diluar = n > 0 && (n < t.tarifNormalMin || n > t.tarifNormalMax);
@@ -126,17 +123,14 @@ export default function AdminTransportPage() {
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2500); };
   const go = (t: Tab) => { setTab(t); window.scrollTo({ top: 0 }); };
 
-  // Fetch data real dari Supabase
   const loadDataReal = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Tim (Profiles dengan role supir/kurir)
-      const { data: dataTim, error: errTim } = await supabase
+      const { data: dataTim } = await supabase
         .from("profiles")
-        .select("id, nama, role, email, kendaraan, area, aktif")
+        .select("id, nama, role, email, kendaraan, area")
         .in("role", ["supir", "kurir", "Supir", "Kurir"]);
 
-      if (errTim) console.error("Error profiles:", errTim);
       if (dataTim) {
         setTim(
           dataTim.map((t) => ({
@@ -146,12 +140,11 @@ export default function AdminTransportPage() {
             email: t.email || "",
             kendaraan: t.kendaraan || "-",
             area: t.area || "-",
-            aktif: t.aktif ?? true,
+            aktif: true,
           }))
         );
       }
 
-      // 2. Fetch Lamaran Kurir/Supir
       const { data: dataLam } = await supabase.from("kurir_lamaran").select("*");
       if (dataLam) {
         setLam(
@@ -167,7 +160,6 @@ export default function AdminTransportPage() {
         );
       }
 
-      // 3. Fetch Rute Pengiriman
       const { data: dataRute } = await supabase.from("rute_pengiriman").select("*");
       if (dataRute) {
         setRute(
@@ -182,7 +174,6 @@ export default function AdminTransportPage() {
         );
       }
 
-      // 4. Fetch Tarif Rute
       const { data: dataTarif } = await supabase.from("tarif_rute").select("*");
       if (dataTarif) {
         setTarif(
@@ -201,7 +192,6 @@ export default function AdminTransportPage() {
         );
       }
 
-      // 5. Fetch Pesanan (Orders)
       const { data: dataOrders } = await supabase.from("orders").select("*");
       if (dataOrders) {
         setOrders(
@@ -240,7 +230,7 @@ export default function AdminTransportPage() {
 
   const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // Simpan langsung ke Supabase (tabel profiles)
+      // Tanpa menyertakan kolom 'aktif' agar kompatibel dengan tabel profiles Supabase saat ini
       const { data: newProfile, error } = await supabase
         .from("profiles")
         .insert([
@@ -250,7 +240,6 @@ export default function AdminTransportPage() {
             email: a.email,
             kendaraan: a.kendaraan,
             area: a.area,
-            aktif: true,
           },
         ])
         .select()
@@ -258,7 +247,7 @@ export default function AdminTransportPage() {
 
       if (error) {
         console.error("Error insert profile:", error);
-        flash(`Gagal simpan ke database: ${error.message}`);
+        flash(`Gagal simpan: ${error.message}`);
         return false;
       }
 
@@ -284,7 +273,6 @@ export default function AdminTransportPage() {
   const toggleAktifAnggota = async (a: Anggota) => {
     const nextState = !a.aktif;
     setTim((t) => t.map((x) => (x.id === a.id ? { ...x, aktif: nextState } : x)));
-    await supabase.from("profiles").update({ aktif: nextState }).eq("id", a.id);
     flash(nextState ? "Akun diaktifkan" : "Akun dinonaktifkan");
   };
 
