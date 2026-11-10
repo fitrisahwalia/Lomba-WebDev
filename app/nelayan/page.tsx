@@ -129,11 +129,13 @@ function TelegramView({
   onLink,
   onUnlink,
   flash,
+  nelayanName,
 }: {
   linked: boolean;
   onLink: () => void;
   onUnlink: () => void;
   flash: (m: string) => void;
+  nelayanName: string;
 }) {
   const [code, setCode] = useState<string | null>(null);
   const [left, setLeft] = useState(0);
@@ -152,23 +154,23 @@ function TelegramView({
       const { error } = await supabase
         .from("nelayan")
         .update({ kode_tautan: randomCode })
-        .ilike("nama", "%Syifa%");
+        .ilike("nama", `%${nelayanName}%`);
 
       if (error) {
         await supabase
           .from("nelayan")
           .update({ kode_tautan: randomCode })
-          .eq("id", 3);
+          .eq("nama", nelayanName);
       }
 
       setCode(randomCode);
       setLeft(600);
-      flash(`Kode tautan berhasil dibuat: ${randomCode}`);
+      flash(`Kode tautan untuk ${nelayanName} berhasil dibuat: ${randomCode}`);
     } catch (err) {
       console.error("Error gen code:", err);
       setCode("123456");
       setLeft(600);
-      flash("Kode tautan berhasil dibuat!");
+      flash(`Selamat datang ${nelayanName}, kode tautan berhasil dibuat!`);
     }
   };
   const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
@@ -182,7 +184,7 @@ function TelegramView({
           </span>
           <div className="flex-1">
             <p className="font-heading text-lg font-bold text-ink">Telegram Terhubung</p>
-            <p className="text-sm text-ink/60">Akun terhubung · bot @JalaLinkBot</p>
+            <p className="text-sm text-ink/60">Akun {nelayanName} · bot @JalaLinkBot</p>
           </div>
           <button
             onClick={onUnlink}
@@ -193,7 +195,7 @@ function TelegramView({
           </button>
         </div>
         <div className="rounded-2xl bg-surface p-5 text-sm text-ink">
-          <p className="mb-2 font-sub font-bold">Fitur Otomatisasi Bot Telegram</p>
+          <p className="mb-2 font-sub font-bold">Fitur Otomatisasi Bot Telegram ({nelayanName})</p>
           <ul className="list-disc space-y-1 pl-5 text-ink/80">
             <li>Update stok ikan tangkapan & harga terbaru secara instan.</li>
             <li>Terima notifikasi pesanan masuk & status TPI.</li>
@@ -206,7 +208,7 @@ function TelegramView({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-surface p-5">
-        <h2 className="font-heading text-lg font-bold text-ink">Hubungkan Bot Telegram Nelayan</h2>
+        <h2 className="font-heading text-lg font-bold text-ink">Hubungkan Bot Telegram ({nelayanName})</h2>
         <ol className="mt-3 space-y-2 text-sm text-ink">
           {[
             "Klik “Buat Kode” di bawah.",
@@ -225,7 +227,7 @@ function TelegramView({
       {code ? (
         <div className="space-y-3 rounded-2xl border-2 border-[#0E7C86] p-5 text-center">
           <p className="text-sm text-ink/60">
-            Kode tautan kamu · berlaku <b className="text-[#0E7C86]">{mmss}</b>
+            Halo <b>{nelayanName}</b>, kode tautan kamu berlaku <b className="text-[#0E7C86]">{mmss}</b>
           </p>
           <p className="font-heading text-4xl font-bold tracking-[0.3em] text-ink">{code}</p>
           <div className="flex flex-wrap justify-center gap-2">
@@ -351,35 +353,39 @@ function ChatView({
     return (
       <div className="mx-auto max-w-5xl space-y-3 px-4 py-5 pb-28 md:pb-10">
         <h1 className="font-heading text-2xl font-bold text-ink">Chat Pembeli</h1>
-        <div className="grid gap-3 md:grid-cols-2">
-          {convs.map((x) => (
-            <button
-              key={x.id}
-              onClick={() => {
-                setActive(x.id);
-                patch(x.id, (y) => ({ ...y, unread: 0 }));
-              }}
-              className="flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left border border-soft/30 hover:shadow-xs transition"
-            >
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#0E7C86] font-sub font-bold text-white">
-                {x.pembeli[0]}
-              </span>
-              <span className="min-w-0 flex-1">
-                <b className="block font-sub text-ink text-sm">
-                  {x.pembeli} · {x.topik}
-                </b>
-                <span className="block truncate text-xs text-ink/60">
-                  {x.blocked ? "Diblokir" : x.msgs[x.msgs.length - 1].text}
+        {convs.length === 0 ? (
+          <p className="rounded-2xl bg-surface p-6 text-center text-xs text-ink/60">Belum ada pesan masuk dari pembeli.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {convs.map((x) => (
+              <button
+                key={x.id}
+                onClick={() => {
+                  setActive(x.id);
+                  patch(x.id, (y) => ({ ...y, unread: 0 }));
+                }}
+                className="flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left border border-soft/30 hover:shadow-xs transition"
+              >
+                <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#0E7C86] font-sub font-bold text-white">
+                  {x.pembeli[0]}
                 </span>
-              </span>
-              {x.unread > 0 && (
-                <span className="grid size-5 place-items-center rounded-full bg-[#0E7C86] text-[10px] font-bold text-white">
-                  {x.unread}
+                <span className="min-w-0 flex-1">
+                  <b className="block font-sub text-ink text-sm">
+                    {x.pembeli} · {x.topik}
+                  </b>
+                  <span className="block truncate text-xs text-ink/60">
+                    {x.blocked ? "Diblokir" : x.msgs[x.msgs.length - 1].text}
+                  </span>
                 </span>
-              )}
-            </button>
-          ))}
-        </div>
+                {x.unread > 0 && (
+                  <span className="grid size-5 place-items-center rounded-full bg-[#0E7C86] text-[10px] font-bold text-white">
+                    {x.unread}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
 
@@ -669,9 +675,9 @@ export default function NelayanPage() {
   
   const [modalCairkan, setModalCairkan] = useState(false);
   const [selectedIkanReview, setSelectedIkanReview] = useState<Ikan | null>(null);
-  const [nelayanProfile, setNelayanProfile] = useState<{ nama: string; daerah: string } | null>(null);
+  const [nelayanProfile, setNelayanProfile] = useState<{ id?: number; nama: string; daerah: string } | null>(null);
 
-  // 1. Fetch Profil Nelayan dari Supabase
+  // 1. Fetch Profil Nelayan yang Sedang Login Sesuai Akun
   useEffect(() => {
     async function fetchNelayanProfile() {
       try {
@@ -680,6 +686,7 @@ export default function NelayanPage() {
 
         if (!user) return;
 
+        // Ambil profil dari tabel profiles berdasarkan id user aktif
         const { data: profile } = await supabase
           .from("profiles")
           .select("nama, area, email")
@@ -696,10 +703,19 @@ export default function NelayanPage() {
           nelayanData = nData;
         }
 
+        const currentName = nelayanData?.nama || profile?.nama || user.email?.split("@")[0] || "Nelayan";
+        const currentArea = nelayanData?.daerah || profile?.area || "Cilacap";
+
         setNelayanProfile({
-          nama: nelayanData?.nama || profile?.nama || user.email?.split("@")[0] || "Nelayan",
-          daerah: nelayanData?.daerah || profile?.area || "Cilacap"
+          id: nelayanData?.id,
+          nama: currentName,
+          daerah: currentArea
         });
+
+        // Jika data nelayan ditemukan di tabel nelayan, cek status telegram terhubung jika ada chat_id
+        if (nelayanData?.telegram_chat_id) {
+          setLinked(true);
+        }
       } catch (err) {
         console.error("Gagal mengambil profil nelayan:", err);
       }
@@ -718,15 +734,23 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing, Stok, dan Pesanan Asli dari Supabase (Berdasarkan Skema SQL)
+  // 2. Fetch Data Listing, Stok, dan Pesanan Berdasarkan ID Nelayan yang Sedang Login
   useEffect(() => {
     async function fetchDatabaseData() {
-      try {
-        const { data: listingData, error: listingError } = await supabase
-          .from("listing")
-          .select("*, ikan(nama_baku), nelayan(nama)");
+      if (!nelayanProfile) return;
 
-        if (!listingError && listingData && listingData.length > 0) {
+      try {
+        let listingQuery = supabase.from("listing").select("*, ikan(nama_baku), nelayan(id, nama)");
+        
+        if (nelayanProfile.id) {
+          listingQuery = listingQuery.eq("nelayan_id", nelayanProfile.id);
+        } else {
+          listingQuery = listingQuery.ilike("nelayan.nama", `%${nelayanProfile.nama}%`);
+        }
+
+        const { data: listingData, error: listingError } = await listingQuery;
+
+        if (!listingError && listingData) {
           const formattedIkan = listingData.map((item: any) => ({
             id: item.id,
             nama: item.ikan?.nama_baku || "Ikan Tangkapan",
@@ -735,23 +759,28 @@ export default function NelayanPage() {
             habis: item.status === "habis" || item.stok_kg === 0,
             sumber: "Web" as const,
             waktu: item.tanggal_tangkap ? new Date(item.tanggal_tangkap).toLocaleDateString("id-ID") : now(),
-            rating: 4.8,
-            totalUlasan: 10,
+            rating: 0, // Kosong/Netral jika belum ada ulasan murni dari database
+            totalUlasan: 0,
             reviews: []
           }));
           setIkan(formattedIkan);
         }
 
+        // Ambil data orders yang relevan
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
-          .select("*, profiles(nama), listing(harga_per_kg, ikan(nama_baku))");
+          .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku))");
 
-        if (!ordersError && ordersData && ordersData.length > 0) {
-          const formattedPesanan = ordersData.map((ord: any) => ({
+        if (!ordersError && ordersData) {
+          const filteredOrders = nelayanProfile.id 
+            ? ordersData.filter((ord: any) => ord.listing?.nelayan_id === nelayanProfile.id)
+            : ordersData;
+
+          const formattedPesanan = filteredOrders.map((ord: any) => ({
             no: `JL-${ord.id}`,
             teks: `${ord.jumlah_kg} kg ${ord.listing?.ikan?.nama_baku || "Ikan Segar"}`,
             pembeli: ord.profiles?.nama || "Pembeli JalaLink",
-            titik: "TPI Cilacap",
+            titik: `TPI ${nelayanProfile.daerah}`,
             jadwal: ord.tanggal_kirim || "Hari ini",
             totalHargaIkan: (ord.jumlah_kg || 0) * (ord.listing?.harga_per_kg || 0),
             totalOngkirTransport: (ord.jumlah_kg || 0) * (ord.ongkir_per_kg || 0),
@@ -765,7 +794,7 @@ export default function NelayanPage() {
     }
 
     fetchDatabaseData();
-  }, []);
+  }, [nelayanProfile]);
 
   const flash = (m: string) => {
     setToast(m);
@@ -1072,7 +1101,7 @@ export default function NelayanPage() {
 
                     <div className="flex items-center justify-between border-y border-soft/30 py-1.5 text-xs">
                       <button onClick={() => setSelectedIkanReview(l)} className="font-bold text-[#0E7C86] hover:underline flex items-center gap-1">
-                        <Star size={12} className="fill-[#0E7C86]" /> {l.rating} ({l.totalUlasan} Ulasan) &rsaquo;
+                        <Star size={12} className={l.totalUlasan > 0 ? "fill-[#0E7C86]" : "text-soft"} /> {l.rating} ({l.totalUlasan} Ulasan) &rsaquo;
                       </button>
                     </div>
 
@@ -1140,6 +1169,7 @@ export default function NelayanPage() {
                 }}
                 onUnlink={() => setLinked(false)}
                 flash={flash}
+                nelayanName={nelayanProfile?.nama || "Nelayan"}
               />
             </div>
           )}
@@ -1157,8 +1187,8 @@ export default function NelayanPage() {
                   </p>
                   <p className="text-ink/60">Nelayan Tangkap TPI {nelayanProfile?.daerah || "Cilacap"}</p>
                   <p className="flex items-center gap-1 text-ink/60 mt-0.5">
-                    <Star size={12} className="fill-[#0E7C86] text-[#0E7C86]" />
-                    <b>4,8</b> · 23 ulasan toko
+                    <Star size={12} className="text-ink/40" />
+                    <b>0.0</b> · Belum ada ulasan toko
                   </p>
                 </div>
               </div>
