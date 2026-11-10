@@ -15,26 +15,33 @@ async function prosesTautkanKode(ctx: any, kode: string) {
   const chatId = ctx.chat?.id;
 
   if (!kode) {
-    await ctx.reply("Format salah. Gunakan perintah: /tautkan KODE_ANDA (Contoh: /tautkan 123456)");
+    await ctx.reply("Format salah. Gunakan perintah: /tautkan KODE_ANDA (Contoh: /tautkan 789123)");
     return;
   }
 
-  // 1. Cari nelayan berdasarkan kode tautan[cite: 6]
+  // Bersihkan input dari spasi atau huruf JL-
+  const cleanCode = kode.trim().replace(/^JL-/i, "");
+
+  // 1. Cari nelayan berdasarkan kode_tautan
   const { data: nelayan, error } = await supabase
     .from("nelayan")
     .select("id, nama")
-    .eq("kode_tautan", kode.trim())
-    .single();
+    .or(`kode_tautan.eq.${cleanCode},kode_tautan.eq.JL-${cleanCode}`)
+    .maybeSingle();
 
   if (error || !nelayan) {
-    await ctx.reply("❌ Kode tautan tidak valid, sudah kadaluwarsa, atau sudah digunakan.");
+    await ctx.reply("❌ Kode tautan tidak valid, kadaluwarsa, atau sudah digunakan.");
     return;
   }
 
-  // 2. Simpan telegram_chat_id, ubah terverifikasi = true, dan hapus kode_tautan agar tidak bisa dipakai ulang[cite: 6]
+  // 2. Simpan telegram_chat_id & hapus kode_tautan
   await supabase
     .from("nelayan")
-    .update({ telegram_chat_id: chatId, terverifikasi: true, kode_tautan: null })
+    .update({ 
+      telegram_chat_id: String(chatId), 
+      terverifikasi: true, 
+      kode_tautan: null 
+    })
     .eq("id", nelayan.id);
 
   await ctx.reply(`✅ *Berhasil!* Akun Anda terhubung sebagai nelayan: *${nelayan.nama}*.\n\nKetik /jual untuk mulai memasukkan stok ikan Anda.`, { parse_mode: "Markdown" });

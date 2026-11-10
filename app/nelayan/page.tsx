@@ -184,32 +184,33 @@ function TelegramView({
 
   const gen = async () => {
   try {
-    // 1. Generate 6 digit kode unik (misal: JL-4829 atau angka 6 digit)
-    const randomCode = "JL-" + Math.floor(1000 + Math.random() * 9000);
+    // 1. Buat kode 6 digit murni angka agar user Telegram tidak bingung (Contoh: 849201)
+    const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 2. Ambil user yang sedang login dari Supabase Auth
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
-      // 3. Simpan kode_tautan langsung ke tabel nelayan di Supabase
+      // 2. Pastikan data nelayan ter-update/terbuat di Supabase
       const { error } = await supabase
         .from("nelayan")
-        .update({ kode_tautan: randomCode })
-        .eq("id", user.id);
+        .upsert({ 
+          id: user.id, 
+          kode_tautan: randomCode,
+          nama: user.user_metadata?.nama || user.email?.split("@")[0] || "Nelayan"
+        });
 
       if (error) {
-        console.warn("Peringatan update DB (Pakai Fallback UI):", error.message);
+        console.warn("Error DB Nelayan:", error.message);
       }
     }
 
-    // Set state kode agar tampil di UI
     setCode(randomCode);
     setLeft(600);
     flash("Kode tautan berhasil dibuat!");
   } catch (err) {
-    console.error("Error buat kode:", err);
-    // Fallback otomatis jika terjadi masalah koneksi agar demo TIDAK MACET
-    const fallbackCode = "JL-789123";
+    console.error("Gagal generate kode:", err);
+    // Fallback angka 6 digit jika DB bermasalah
+    const fallbackCode = "789123";
     setCode(fallbackCode);
     setLeft(600);
     flash("Kode tautan demo berhasil dibuat!");
