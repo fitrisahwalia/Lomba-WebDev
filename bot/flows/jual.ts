@@ -1,140 +1,131 @@
-import { Context } from "grammy";
 import { createClient } from "@supabase/supabase-js";
-import Fuse from "fuse.js";
-import { z } from "zod";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const numberSchema = z.number().positive({ message: "Harus berupa angka positif!" });
-
-export async function handleJualFlow(ctx: Context, session: any) {
+export async function handleJualFlow(ctx: any, session: any) {
   const chatId = ctx.chat?.id;
-  const text = ctx.msg?.text;
+  const text = ctx.message?.text?.trim();
 
-  // Cek apakah nelayan sudah terdaftar & tertaut
-  const { data: nelayan } = await supabase
-    .from("nelayan")
-    .select("id")
-    .eq("telegram_chat_id", chatId)
-    .single();
+  if (!text) return;
 
-  if (!nelayan) {
-    await ctx.reply("Akun Telegram kamu belum tertaut sebagai nelayan. Silakan ketik /tautkan <kode> dari admin terlebih dahulu.");
+  // STEP 1: MENUNGGU NAMA IKAN
+  if (session.step === "MENUNGGU_NAMA_IKAN") {
+    // 1. Cari dulu ke tabel ikan secara case-insensitive (.ilike)
+    let { data: ikan } = await supabase
+      .from("ikan")
+      .select("id, nama_baku")
+      .ilike("nama_baku", `%${text}%`)
+      .maybeSingle();
+
+    // 2. Jika tidak ditemukan di nama_baku, cari di tabel ikan_alias
+    if (!ikan) {
+      const { data: aliasData } = await supabase
+        .from("ikan_alias")
+        .select("ikan_id, ikan(id, nama_baku)")
+        .ilike("alias", `%${text}%`)
+        .maybeSingle();
+
+      if (aliasData && aliasData.ikan) {
+        ikan = Array.isArray(aliasData.ikan) ? aliasData.ikan[0] : aliasData.ikan;
+      }
+    }
+
+    // 3. Jika masih tidak ketemu sama sekali
+    if (!ikan) {
+      await ctx.reply(
+        `❌ Nama ikan *"${text}"* belum terdaftar di sistem.\n\nContoh ikan yang tersedia: *Tongkol, Kembung, Cumi-cumi, Kakap Merah*. Silakan ketik ulang nama ikannya:`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    // 4. Jika ketemu, update session ke step berikutnya (MENUNGGU_STOK)
+    await supabase.from("bot_session").update({
+      step: "MENUNGGU_STOK",
+      data: {
+        ...session.data,
+        ikan_id: ikan.id,
+        nama_ikan: ikan.nama_baku
+      }
+    }).eq("chat_id", chatId);
+
+    await ctx.reply(
+      `✅ Ikan terdeteksi: *${ikan.nama_baku}*.\n\nBerapa total stok (kg) yang mau dijual hari ini? (Contoh: 15)`,
+      { parse_mode: "Markdown" }
+    );
     return;
   }
 
-  switch (session?.step) {
-    case "MENUNGGU_NAMA_IKAN":
-      const { data: ikanList } = await supabase.from("ikan_alias").select("alias, ikan_id, ikan:ikan_id(nama_baku)");
-      const fuse = new Fuse(ikanList || [], { keys: ["alias"], threshold: 0.4 });
-      const results = fuse.search(text || "");
+  // STEP 2: MENUNGGU STOK (KG)
+  if (session.step === "MENUNGGU_STOK") {
+    const stok = parseFloat(text.replace(",", "."));
+    if (isNaN(stok) || stok <= 0) {
+      await ctx.reply("❌ Masukkan jumlah stok dalam angka yang valid (contoh: 10 atau 25.5).");
+      return;
+    }
 
-      if (results.length === 0) {
-        await ctx.reply("Ikan tidak dikenali. Coba ketik nama ikan yang lain (contoh: Kembung, Tongkol):");
-        return;
-      }
+    await supabase.from("bot_session").update({
+      step: "MENUNGGU_HARGA",
+      data: { ...session.data, stok_kg: stok }
+    }).eq("chat_id", chatId);
 
-      const matchedIkan = results[0].item;
-      await supabase.from("bot_session").upsert({
-        chat_id: chatId,
-        step: "MENUNGGU_JUMLAH",
-        data: { ...session.data, ikan_id: matchedIkan.ikan_id, nama_ikan: (matchedIkan.ikan as any).nama_baku }
-      });
-
-      await ctx.reply(`Ketemu: *${(matchedIkan.ikan as any).nama_baku}*.\nAda berapa kg stok yang mau dijual hari ini?`, { parse_mode: "Markdown" });
-      break;
-
-    case "MENUNGGU_JUMLAH":
-      const stok = parseFloat(text || "");
-      if (!numberSchema.safeParse(stok).success) {
-        await ctx.reply("Format angka salah. Masukkan jumlah stok dalam bentuk angka (contoh: 50):");
-        return;
-      }
-
-      await supabase.from("bot_session").upsert({
-        chat_id: chatId,
-        step: "MENUNGGU_HARGA",
-        data: { ...session.data, stok_kg: stok }
-      });
-
-      await ctx.reply("Berapa harga per kg-nya? (Ketik angkanya saja, misal: 30000):");
-      break;
-
-    case "MENUNGGU_HARGA":
-      const harga = parseFloat(text || "");
-      if (!numberSchema.safeParse(harga).success) {
-        await ctx.reply("Format harga salah. Masukkan harga dalam bentuk angka (contoh: 30000):");
-        return;
-      }
-
-      await supabase.from("bot_session").upsert({
-        chat_id: chatId,
-        step: "MENUNGGU_FOTO",
-        data: { ...session.data, harga_per_kg: harga }
-      });
-
-      await ctx.reply("Kirimkan foto ikan segar hari ini ya, Pak/Bu, supaya pembeli lebih percaya! 📸");
-      break;
+    await ctx.reply(
+      `Stok: *${stok} kg*.\n\nBerapa harga jual per kg (Rp)? (Contoh: 35000)`,
+      { parse_mode: "Markdown" }
+    );
+    return;
   }
-}
 
-// Fungsi khusus menangani foto (H3)
-export async function handlePhotoFlow(ctx: Context, session: any) {
-  const chatId = ctx.chat?.id;
-  const photo = ctx.msg?.photo;
+  // STEP 3: MENUNGGU HARGA PER KG
+  if (session.step === "MENUNGGU_HARGA") {
+    const harga = parseInt(text.replace(/[^0-9]/g, ""), 10);
+    if (isNaN(harga) || harga <= 0) {
+      await ctx.reply("❌ Masukkan nominal harga dalam angka yang valid (contoh: 35000).");
+      return;
+    }
 
-  if (!photo || session?.step !== "MENUNGGU_FOTO") return;
+    const d = { ...session.data, harga_per_kg: harga };
 
-  try {
-    const fileId = photo[photo.length - 1].file_id;
-    const file = await ctx.api.getFile(fileId);
-    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+    await supabase.from("bot_session").update({
+      step: "KONFIRMASI",
+      data: d
+    }).eq("chat_id", chatId);
 
-    const response = await fetch(fileUrl);
-    const blob = await response.blob();
-    const fileName = `listing_${chatId}_${Date.now()}.jpg`;
+    await ctx.reply(
+      `📋 *Ringkasan Listing Ikan:*\n\n` +
+      `• Jenis Ikan: *${d.nama_ikan}*\n` +
+      `• Stok: *${d.stok_kg} kg*\n` +
+      `• Harga: *Rp${harga.toLocaleString("id-ID")}/kg*\n\n` +
+      `Ketik *YA* untuk konfirmasi dan menayangkan di web catalog, atau ketik /jual untuk mengulang.`,
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
 
-    // Upload ke Supabase Storage bucket 'listing-photos'
-    const { error: uploadError } = await supabase.storage
-      .from("listing-photos")
-      .upload(fileName, blob, { contentType: "image/jpeg" });
+  // STEP 4: KONFIRMASI AKHIR
+  if (session.step === "KONFIRMASI") {
+    if (text.toUpperCase() === "YA" || text.toUpperCase() === "Y") {
+      const d = session.data;
+      const { data: nelayan } = await supabase.from("nelayan").select("id").eq("telegram_chat_id", chatId).maybeSingle();
 
-    if (uploadError) throw uploadError;
-
-    const { data: publicUrlData } = supabase.storage
-      .from("listing-photos")
-      .getPublicUrl(fileName);
-
-    const fotoUrl = publicUrlData.publicUrl;
-
-    // Simpan foto_url ke bot_session, ubah step ke konfirmasi
-    await supabase.from("bot_session").upsert({
-      chat_id: chatId,
-      step: "MENUNGGU_KONFIRMASI",
-      data: { ...session.data, foto_url: fotoUrl }
-    });
-
-    const data = session.data;
-    const ringkasan = `📋 *Ringkasan Listing Anda:*\n\n🐟 Ikan: ${data.nama_ikan}\n📦 Stok: ${data.stok_kg} kg\n💰 Harga: Rp${data.harga_per_kg} / kg\n\nApakah data di atas sudah benar?`;
-
-    await ctx.replyWithPhoto(fotoUrl, {
-      caption: ringkasan,
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "✅ Benar", callback_data: "konfirmasi_ya" },
-            { text: "❌ Ulang", callback_data: "konfirmasi_tidak" }
-          ]
-        ]
+      if (nelayan) {
+        await supabase.from("listing").insert({
+          nelayan_id: nelayan.id,
+          ikan_id: d.ikan_id,
+          harga_per_kg: d.harga_per_kg,
+          stok_kg: d.stok_kg,
+          tanggal_tangkap: new Date().toISOString().split("T")[0],
+          status: "aktif"
+        });
       }
-    });
 
-  } catch (err) {
-    console.error("Gagal upload foto:", err);
-    await ctx.reply("Gagal memproses foto. Silakan kirim ulang foto ikannya ya.");
+      await supabase.from("bot_session").delete().eq("chat_id", chatId);
+
+      await ctx.reply("🎉 *Berhasil!* Listing ikan Anda telah ditayangkan di web katalog JalaLink.", { parse_mode: "Markdown" });
+    } else {
+      await ctx.reply("Ketik *YA* untuk mengonfirmasi, atau ketik /jual untuk mulai dari awal.");
+    }
   }
 }
