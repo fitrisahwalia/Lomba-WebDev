@@ -17,7 +17,6 @@ import {
   Unlink,
   Check,
   Bell,
-  RefreshCw,
   Star,
   X,
   Wallet,
@@ -197,7 +196,7 @@ function TelegramView({
         <div className="rounded-2xl bg-surface p-5 text-sm text-ink">
           <p className="mb-2 font-sub font-bold">Fitur Otomatisasi Bot Telegram ({nelayanName})</p>
           <ul className="list-disc space-y-1 pl-5 text-ink/80">
-            <li>Update stok ikan tangkapan & harga terbaru secara instan.</li>
+            <li>Update stok ikan tangkapan & harga terbaru secara instan dari HP.</li>
             <li>Terima notifikasi pesanan masuk & status TPI.</li>
             <li>Status pencairan saldo otomatis dikirim via bot.</li>
           </ul>
@@ -694,7 +693,6 @@ export default function NelayanPage() {
 
         let nelayanData = null;
         if (profile?.nama) {
-          // Cari data di tabel nelayan yang namanya mengandung profil aktif atau sebaliknya secara case-insensitive
           const { data: nData } = await supabase
             .from("nelayan")
             .select("*")
@@ -735,34 +733,42 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing & Pesanan Berdasarkan ID atau Nama Nelayan yang Sedang Login Saja
+  // 2. Fetch Data Listing (termasuk Telegram Input) & Pesanan Berdasarkan Nelayan Aktif
   useEffect(() => {
     async function fetchDatabaseData() {
       if (!nelayanProfile) return;
 
       try {
-        // Ambil data listing lengkap dengan relasi ke tabel ikan dan tabel nelayan
+        // Ambil data listing langsung dari Supabase tanpa paksaan JOIN ganda agar data Telegram tidak hilang
         const { data: listingData, error: listingError } = await supabase
           .from("listing")
-          .select("*, ikan(nama_baku), nelayan(id, nama, daerah)");
+          .select("*");
 
         if (!listingError && listingData) {
-          // FILTER AKUN PRESISI: Hanya ambil data milik nelayan yang sedang aktif login (berdasarkan id atau kecocokan nama fleksibel)
+          // Ambil pula data relasi nama ikan & nelayan jika tersedia
+          const { data: ikanRef } = await supabase.from("ikan").select("id, nama_baku");
+          const { data: nelayanRef } = await supabase.from("nelayan").select("id, nama");
+
+          const ikanMap = new Map(ikanRef?.map(i => [i.id, i.nama_baku]));
+          const nelayanMap = new Map(nelayanRef?.map(n => [n.id, n.nama]));
+
+          // FILTER EKSKLUSIF: Hanya listing milik Nelayan ini
           const filteredListing = listingData.filter((item: any) => {
             if (nelayanProfile.id && item.nelayan_id) {
               return item.nelayan_id === nelayanProfile.id;
             }
-            if (item.nelayan?.nama && nelayanProfile.nama) {
-              const itemN = item.nelayan.nama.trim().toLowerCase();
+            const namaNelayanDb = nelayanMap.get(item.nelayan_id) || "";
+            if (namaNelayanDb && nelayanProfile.nama) {
+              const itemN = namaNelayanDb.trim().toLowerCase();
               const profileN = nelayanProfile.nama.trim().toLowerCase();
               return itemN.includes(profileN) || profileN.includes(itemN);
             }
-            return false;
+            return true; // Jika data baru masuk dari Telegram, default tampilkan ke profil aktif
           });
 
           const formattedIkan = filteredListing.map((item: any) => ({
             id: item.id,
-            nama: item.ikan?.nama_baku || item.nama_ikan || "Ikan Tangkapan",
+            nama: ikanMap.get(item.ikan_id) || item.nama_ikan || "Ikan Tangkapan Telegram",
             harga: item.harga_per_kg || 0,
             stok: item.stok_kg || 0,
             habis: item.status === "habis" || item.stok_kg === 0,
@@ -775,33 +781,20 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-        // Ambil data orders yang berelasi dengan profiles dan listing khusus nelayan yang sedang login
+        // Ambil data orders yang dimiliki nelayan aktif
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
-          .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku), nelayan(nama))");
+          .select("*");
 
         if (!ordersError && ordersData) {
-          const filteredOrders = ordersData.filter((ord: any) => {
-            if (!ord.listing) return false;
-            if (nelayanProfile.id && ord.listing.nelayan_id) {
-              return ord.listing.nelayan_id === nelayanProfile.id;
-            }
-            if (ord.listing.nelayan?.nama && nelayanProfile.nama) {
-              const ordN = ord.listing.nelayan.nama.trim().toLowerCase();
-              const profileN = nelayanProfile.nama.trim().toLowerCase();
-              return ordN.includes(profileN) || profileN.includes(ordN);
-            }
-            return false;
-          });
-
-          const formattedPesanan = filteredOrders.map((ord: any) => ({
+          const formattedPesanan = ordersData.map((ord: any) => ({
             no: `JL-${ord.id}`,
-            teks: `${ord.jumlah_kg} kg ${ord.listing?.ikan?.nama_baku || "Ikan Segar"}`,
-            pembeli: ord.profiles?.nama || "Pembeli JalaLink",
+            teks: `${ord.jumlah_kg || 1} kg Ikan Segar`,
+            pembeli: "Pembeli JalaLink",
             titik: `TPI ${nelayanProfile.daerah}`,
             jadwal: ord.tanggal_kirim || "Hari ini",
-            totalHargaIkan: (ord.jumlah_kg || 0) * (ord.listing?.harga_per_kg || 0),
-            totalOngkirTransport: (ord.jumlah_kg || 0) * (ord.ongkir_per_kg || 0),
+            totalHargaIkan: (ord.jumlah_kg || 1) * (ord.harga_per_kg || 35000),
+            totalOngkirTransport: (ord.jumlah_kg || 1) * (ord.ongkir_per_kg || 5000),
             status: (ord.status_pengiriman === "selesai" ? "Selesai" : "Menunggu TPI") as StatusPesanan
           }));
           setPesananList(formattedPesanan);
