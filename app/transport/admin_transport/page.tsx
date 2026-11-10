@@ -179,11 +179,17 @@ export default function AdminTransportPage() {
 
   const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // Menetapkan nilai role huruf kecil persis sesuai CHECK constraint ('supir' / 'kurir')
       const targetRole = a.peran.toLowerCase() === "supir" ? "supir" : "kurir";
 
-      // 1. Daftarkan Auth ke Supabase dengan metadata role terikat
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // PENTING: Pakai client terisolasi agar sesi login Admin Transport tidak tertimpa/logout!
+      const tempSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm",
+        { auth: { persistSession: false } }
+      );
+
+      // 1. Daftarkan Auth Kurir / Supir baru
+      const { data: authData, error: authError } = await tempSupabase.auth.signUp({
         email: a.email,
         password: pw,
         options: {
@@ -206,21 +212,21 @@ export default function AdminTransportPage() {
         return false;
       }
 
-      // 2. Paksa simpan/update role 'supir' / 'kurir' ke tabel 'profiles'
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        [
-          {
-            id: newUserId,
-            nama: a.nama,
-            role: targetRole,
-            email: a.email,
-            area: a.area,
-            kendaraan: a.kendaraan,
-            aktif: true,
-          },
-        ],
-        { onConflict: "id" }
-      );
+      // Beri jeda 300ms agar tidak berbenturan jika ada SQL trigger
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // 2. Simpan/Update profil ke tabel 'profiles' dengan role 'supir' / 'kurir' yang dikunci
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert({
+          id: newUserId,
+          nama: a.nama,
+          role: targetRole,
+          email: a.email,
+          area: a.area,
+          kendaraan: a.kendaraan,
+          aktif: true,
+        });
 
       if (profileError) {
         console.error("Error Upsert Profiles:", profileError);
@@ -235,7 +241,7 @@ export default function AdminTransportPage() {
         setLam((l) => l.map((x) => (x.id === sheet.prefill!.id ? { ...x, status: "Disetujui" } : x)));
       }
 
-      flash(`Akun ${a.peran} berhasil dibuat & siap login!`);
+      flash(`Akun ${a.peran} berhasil dibuat! Sesi Admin kamu tetap aman.`);
       return true;
     } catch (err) {
       console.error(err);
