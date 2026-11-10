@@ -694,12 +694,15 @@ export default function NelayanPage() {
 
         let nelayanData = null;
         if (profile?.nama) {
+          // Cari data di tabel nelayan yang namanya mengandung profil aktif atau sebaliknya secara case-insensitive
           const { data: nData } = await supabase
             .from("nelayan")
             .select("*")
-            .ilike("nama", `%${profile.nama}%`)
-            .maybeSingle();
-          nelayanData = nData;
+            .or(`nama.ilike.%${profile.nama}%,nama.ilike.%${profile.nama.trim().split(" ")[0]}%`);
+          
+          if (nData && nData.length > 0) {
+            nelayanData = nData[0];
+          }
         }
 
         const currentName = nelayanData?.nama || profile?.nama || user.email?.split("@")[0] || "Nelayan";
@@ -732,28 +735,27 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing & Pesanan Sesuai Akun Nelayan yang Login
+  // 2. Fetch Data Listing & Pesanan Berdasarkan ID atau Nama Nelayan yang Sedang Login Saja
   useEffect(() => {
     async function fetchDatabaseData() {
       if (!nelayanProfile) return;
 
       try {
-        // Ambil data listing lengkap dengan relasi ke tabel ikan dan nelayan
+        // Ambil data listing lengkap dengan relasi ke tabel ikan dan tabel nelayan
         const { data: listingData, error: listingError } = await supabase
           .from("listing")
           .select("*, ikan(nama_baku), nelayan(id, nama, daerah)");
 
         if (!listingError && listingData) {
-          // Filter ketat: HANYA ambil data yang nelayan_id atau nama nelayannya cocok dengan akun login aktif
+          // FILTER AKUN PRESISI: Hanya ambil data milik nelayan yang sedang aktif login (berdasarkan id atau kecocokan nama fleksibel)
           const filteredListing = listingData.filter((item: any) => {
             if (nelayanProfile.id && item.nelayan_id) {
               return item.nelayan_id === nelayanProfile.id;
             }
             if (item.nelayan?.nama && nelayanProfile.nama) {
-              return (
-                item.nelayan.nama.toLowerCase().includes(nelayanProfile.nama.toLowerCase()) ||
-                nelayanProfile.nama.toLowerCase().includes(item.nelayan.nama.toLowerCase())
-              );
+              const itemN = item.nelayan.nama.trim().toLowerCase();
+              const profileN = nelayanProfile.nama.trim().toLowerCase();
+              return itemN.includes(profileN) || profileN.includes(itemN);
             }
             return false;
           });
@@ -773,7 +775,7 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-        // Ambil data orders yang berelasi dengan profiles dan listing khusus nelayan ini
+        // Ambil data orders yang berelasi dengan profiles dan listing khusus nelayan yang sedang login
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
           .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku), nelayan(nama))");
@@ -785,10 +787,9 @@ export default function NelayanPage() {
               return ord.listing.nelayan_id === nelayanProfile.id;
             }
             if (ord.listing.nelayan?.nama && nelayanProfile.nama) {
-              return (
-                ord.listing.nelayan.nama.toLowerCase().includes(nelayanProfile.nama.toLowerCase()) ||
-                nelayanProfile.nama.toLowerCase().includes(ord.listing.nelayan.nama.toLowerCase())
-              );
+              const ordN = ord.listing.nelayan.nama.trim().toLowerCase();
+              const profileN = nelayanProfile.nama.trim().toLowerCase();
+              return ordN.includes(profileN) || profileN.includes(ordN);
             }
             return false;
           });
