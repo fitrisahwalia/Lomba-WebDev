@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed, Ticket, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Search, MapPin, Home, ClipboardList, MessageCircle, User, ShoppingCart, ChevronLeft, Star, BadgeCheck, Minus, Plus, Trash2, X, PackageCheck, Send, Flag, LogOut, LifeBuoy, Snowflake, Camera, CheckSquare, Square, Store, ShieldAlert, ChevronDown, HelpCircle, LocateFixed, Ticket, CheckCircle2, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
@@ -159,6 +159,7 @@ type CartItem = {
 };
 
 type UserProfile = {
+  id?: string;
   nama: string;
   email: string;
   phone: string;
@@ -245,6 +246,7 @@ type OrderItem = {
 };
 
 type Order = {
+  rawId: number;
   no: string;
   itemsSummary: string;
   items: OrderItem[];
@@ -312,7 +314,7 @@ function TopNav({ tab, go, cartCount, onCart, user, onEditAddress }: { tab: Tab;
             title="Klik untuk ubah alamat & titik lokasi"
           >
             <MapPin size={14} />
-            <span className="max-w-[120px] truncate sm:max-w-none">{user.kotaKecamatan || "Jatinangor, Sumedang"}</span>
+            <span className="max-w-[120px] truncate sm:max-w-none">{user.kotaKecamatan || "Bandung, Jawa Barat"}</span>
           </button>
           <button onClick={onCart} className="relative grid size-10 place-items-center rounded-full hover:bg-surface transition" aria-label="Keranjang">
             <ShoppingCart size={22} className="text-ink" />
@@ -389,7 +391,7 @@ function ListingCard({ l, onClick, onOpenFisher }: { l: Listing; onClick: () => 
   );
 }
 
-function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: Listing[]; userName: string; onOpen: (id: number) => void; onOpenFisher: (fisherName: string) => void }) {
+function HomeView({ listings, userName, onOpen, onOpenFisher, loading }: { listings: Listing[]; userName: string; onOpen: (id: number) => void; onOpenFisher: (fisherName: string) => void; loading?: boolean }) {
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("Semua");
   const [focus, setFocus] = useState(false);
@@ -476,9 +478,14 @@ function HomeView({ listings, userName, onOpen, onOpenFisher }: { listings: List
             ]}
           />
         </div>
-        {list.length ? (
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-ink/60">
+            <RefreshCw size={18} className="animate-spin text-brand" /> Memuat data katalog Supabase...
+          </div>
+        ) : list.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{list.map((l) => <ListingCard key={l.id} l={l} onClick={() => onOpen(l.id)} onOpenFisher={onOpenFisher} />)}</div>
-        ) : <p className="py-12 text-center text-ink/60">Ikan tidak ditemukan.</p>}
+        ) : <p className="py-12 text-center text-ink/60">Belum ada listing ikan yang tersedia di database.</p>}
       </section>
     </div>
   );
@@ -680,17 +687,6 @@ function DetailView({ l, onBack, onAdd, fav, onFav, onChat, onOpenReview, onOpen
                     ))}
                   </div>
                   <p className="text-sm text-ink/80">{rev.comment}</p>
-                  {rev.mediaUrl && (
-                    <div className="pt-1">
-                      {rev.mediaType === "video" ? (
-                        <video src={rev.mediaUrl} controls className="h-24 w-40 rounded-xl object-cover border border-soft bg-black" />
-                      ) : (
-                        <div className="relative size-20 overflow-hidden rounded-xl border border-soft bg-white">
-                          <Image src={rev.mediaUrl} alt="Foto Ulasan" fill className="object-cover" />
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -848,7 +844,7 @@ function CartSheet({ open, onClose, cartItems, listings, userAddress, onQtyChang
   );
 }
 
-function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; onDone: (no: string) => void; onReview: (no: string) => void; onBrowse: () => void }) {
+function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; onDone: (rawId: number, no: string) => void; onReview: (no: string) => void; onBrowse: () => void }) {
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif");
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
@@ -964,7 +960,7 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
 
                   {o.status !== "Selesai" ? (
                     <Button 
-                      onClick={() => onDone(o.no)} 
+                      onClick={() => onDone(o.rawId, o.no)} 
                       className="rounded-xl bg-brand px-5 py-2.5 font-sub text-xs font-bold text-white hover:bg-brand/90 shadow-sm shrink-0 whitespace-nowrap"
                     >
                       Konfirmasi Diterima
@@ -973,9 +969,6 @@ function PesananView({ orders, onDone, onReview, onBrowse }: { orders: Order[]; 
                     <div className="flex flex-col items-end gap-1">
                       <span className="flex items-center gap-1 font-sub text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-xl">
                         <Star size={13} className="fill-brand" /> Ikan: {o.ratingPesanan}/5
-                      </span>
-                      <span className="text-[10px] text-ink/60 font-semibold">
-                        Toko {o.ratingToko}/5 · Kurir {o.ratingKurir}/5
                       </span>
                     </div>
                   ) : (
@@ -1073,10 +1066,6 @@ function ChatRoom({ nama, daerah, msgs, used, onSend, onBack, onReport, isAdmin 
           <div key={i} className={`flex flex-col ${m.me ? "items-end" : "items-start"}`}>
             <div className={`max-w-[80%] md:max-w-[65%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${m.me ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm bg-white text-ink"}`}>
               <p className="break-words leading-relaxed">{m.text}</p>
-              <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${m.me ? "text-white/80" : "text-ink/50"}`}>
-                <span>05.30</span>
-                {m.me && <span className="font-bold">v</span>}
-              </div>
             </div>
           </div>
         ))}
@@ -1367,7 +1356,7 @@ function AkunView({
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-heading text-xl font-bold text-ink truncate">{user.nama}</p>
-              <p className="text-sm text-ink/60 truncate">{user.email} · {user.phone}</p>
+              <p className="text-sm text-ink/60 truncate">{user.email}</p>
             </div>
             <Button onClick={onEditProfile} className="rounded-xl border border-brand bg-white px-4 py-2 font-sub text-xs text-brand hover:bg-surface shrink-0 shadow-sm">
               Edit Profil
@@ -1382,7 +1371,6 @@ function AkunView({
                 <span className="font-bold text-ink block truncate text-base">{user.jalanNo}</span>
                 <span className="text-xs text-ink/70 block truncate">{user.kotaKecamatan}</span>
                 {user.patokan && <span className="text-[11px] text-brand font-semibold block truncate">Patokan: {user.patokan}</span>}
-                <span className="text-[10px] text-ink/50 block font-mono">Pin Lokasi: {user.lat.toFixed(4)}, {user.lng.toFixed(4)}</span>
               </div>
             </div>
             <button onClick={onEditAddress} className="font-sub text-xs font-bold text-brand hover:underline shrink-0">
@@ -1475,10 +1463,6 @@ function EditProfileSheet({ user, onClose, onSave }: { user: UserProfile; onClos
             <label className="block mb-1">Email</label>
             <Input type="email" value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
           </div>
-          <div>
-            <label className="block mb-1">Nomor WhatsApp / HP</label>
-            <Input type="tel" value={phone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)} required className="h-11 rounded-xl border border-soft px-3 text-sm text-ink placeholder:text-soft" />
-          </div>
         </div>
 
         <Button type="submit" className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90 shadow-sm mt-2">
@@ -1516,7 +1500,7 @@ function EditAddressSheet({ user, onClose, onSave }: { user: UserProfile; onClos
               setAlamatPeta(data.display_name);
             }
           } catch {
-            // abaikan error
+            // ignore
           } finally {
             setLoadingAddress(false);
             setIsLocating(false);
@@ -1699,22 +1683,11 @@ function ReportSheet({ fisherName, onClose, onSubmit }: { fisherName: string; on
   );
 }
 
-function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productName: string; fisherName: string; onClose: () => void; onSubmit: (rPesanan: number, rToko: number, rKurir: number, note: string, mediaUrl?: string, mediaType?: "image" | "video") => void }) {
+function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productName: string; fisherName: string; onClose: () => void; onSubmit: (rPesanan: number, rToko: number, rKurir: number, note: string) => void }) {
   const [rPesanan, setRPesanan] = useState(5);
   const [rToko, setRToko] = useState(5);
   const [rKurir, setRKurir] = useState(5);
   const [note, setNote] = useState("");
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<"image" | "video">("image");
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const isVid = file.type.startsWith("video/");
-      setMediaType(isVid ? "video" : "image");
-      setMediaUrl(URL.createObjectURL(file));
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
@@ -1766,29 +1739,7 @@ function ReviewSheet({ productName, fisherName, onClose, onSubmit }: { productNa
           className="w-full rounded-xl border border-soft p-3 text-sm text-ink placeholder:text-soft outline-none focus:border-brand" 
         />
 
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-ink">Foto / Video Ulasan (Opsional)</label>
-          <div className="flex items-center gap-3">
-            <label className="flex h-16 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-soft/80 text-soft hover:border-brand hover:text-brand transition">
-              <Camera size={18} />
-              <span className="text-[10px] mt-0.5 font-semibold">Upload</span>
-              <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
-            </label>
-
-            {mediaUrl && (
-              <div className="relative h-16 w-24 overflow-hidden rounded-xl border border-brand bg-black">
-                {mediaType === "video" ? (
-                  <video src={mediaUrl} className="h-full w-full object-cover" />
-                ) : (
-                  <Image src={mediaUrl} alt="Preview Media" fill className="object-cover" />
-                )}
-                <button onClick={() => setMediaUrl(null)} className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white"><X size={12} /></button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Button onClick={() => { onSubmit(rPesanan, rToko, rKurir, note, mediaUrl || undefined, mediaType); onClose(); }} className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90">
+        <Button onClick={() => { onSubmit(rPesanan, rToko, rKurir, note); onClose(); }} className="h-12 w-full rounded-xl bg-brand font-sub text-base font-semibold text-white hover:bg-brand/90">
           Kirim Ulasan Lengkap
         </Button>
       </div>
@@ -1828,6 +1779,7 @@ export default function Page() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
   const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<number | null>(null);
   
   const [selectedFisher, setSelectedFisher] = useState<string | null>(null);
@@ -1839,10 +1791,10 @@ export default function Page() {
     jalanNo: "Jl. Melati No. 12",
     rt: "",
     rw: "",
-    kotaKecamatan: "Jatinangor, Sumedang",
-    patokan: "Pagar hitam depan warung kelontong",
-    lat: -6.9312,
-    lng: 107.7735
+    kotaKecamatan: "Bandung",
+    patokan: "Patokan lokasi",
+    lat: -6.9147,
+    lng: 107.6098
   });
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -1864,120 +1816,131 @@ export default function Page() {
   const [reviewForOrder, setReviewForOrder] = useState<string | null>(null);
   const [isDetailReviewOpen, setIsDetailReviewOpen] = useState(false);
 
-  // LOAD REAL DATA DARI SUPABASE
-  useEffect(() => {
-    async function loadDataFromSupabase() {
-      try {
-        // 1. Profil Pembeli
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: dbProfile } = await supabase
-            .from("profiles")
-            .select("nama, no_hp, jalan_no, kota_kecamatan, patokan, lat, lng")
-            .eq("id", user.id)
-            .maybeSingle();
+  // FETCH DATA REAL DARI DATABASE SUPABASE
+  const loadSupabaseData = async () => {
+    setLoading(true);
+    try {
+      // 1. User Profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id, nama, email, area, kendaraan")
+          .eq("id", user.id)
+          .maybeSingle();
 
+        if (profile) {
           setUserProfile((prev) => ({
             ...prev,
-            nama: dbProfile?.nama || user.user_metadata?.nama || "Pembeli",
-            email: user.email || "",
-            phone: dbProfile?.no_hp || user.user_metadata?.no_hp || "+62 812-3456-7890",
-            jalanNo: dbProfile?.jalan_no || prev.jalanNo,
-            kotaKecamatan: dbProfile?.kota_kecamatan || prev.kotaKecamatan,
-            patokan: dbProfile?.patokan || prev.patokan,
-            lat: dbProfile?.lat ?? prev.lat,
-            lng: dbProfile?.lng ?? prev.lng,
+            id: profile.id,
+            nama: profile.nama || user.email?.split("@")[0] || "Pembeli",
+            email: profile.email || user.email || "",
+            kotaKecamatan: profile.area || "Bandung",
+            patokan: profile.kendaraan || "Rumah",
           }));
-
-          // 2. Load Tiket Bantuan CS
-          const { data: dbTickets } = await supabase
-            .from("help_tickets")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false });
-
-          if (dbTickets) {
-            setHelpTickets(
-              dbTickets.map((t) => ({
-                id: t.ticket_no || `#TCK-${t.id}`,
-                topik: t.topik || "Kendala Pesanan & Ikan",
-                subjek: t.subjek || "",
-                status: t.status === "Selesai" ? "Selesai" : "Sedang Diproses",
-                tanggal: t.tanggal || "Baru saja",
-                messages: typeof t.messages === "string" ? JSON.parse(t.messages) : (t.messages || []),
-              }))
-            );
-          }
         }
-
-        // 3. Load Katalog Ikan & Reviews
-        const { data: dbIkan } = await supabase.from("ikan").select("*");
-        const { data: dbReviews } = await supabase.from("reviews").select("*");
-
-        if (dbIkan) {
-          const mappedListings: Listing[] = dbIkan.map((i) => {
-            const fishReviews: ReviewItem[] = (dbReviews || [])
-              .filter((r) => r.ikan_id === i.id)
-              .map((r) => ({
-                id: r.id,
-                user: r.user_nama || "Pembeli",
-                rating: r.rating || 5,
-                date: r.created_at ? new Date(r.created_at).toLocaleDateString("id-ID") : "Baru saja",
-                comment: r.comment || "",
-                mediaUrl: r.media_url,
-                mediaType: r.media_type,
-              }));
-
-            return {
-              id: i.id,
-              nama: i.nama || "",
-              nelayan: i.nelayan || "Pak Nelayan",
-              daerah: i.daerah || "Pesisir",
-              harga: i.harga || 0,
-              stok: i.stok || 0,
-              min: i.min || 1,
-              ongkirFlat: i.ongkir_flat || i.ongkirFlat || 8000,
-              jamTibaHub: i.jam_tiba_hub || i.jamTibaHub || "Besok 06.00 WIB",
-              jamAntarRumah: i.jam_antar_rumah || i.jamAntarRumah || "07.00 - 10.00 WIB",
-              jam: i.jam || "05.30 WIB",
-              rating: i.rating || 5,
-              ulasanCount: i.ulasan_count || fishReviews.length,
-              alias: typeof i.alias === "string" ? JSON.parse(i.alias) : (i.alias || []),
-              desc: i.desc || i.deskripsi || "Ikan segar tangkapan nelayan lokal.",
-              reviews: fishReviews,
-            };
-          });
-
-          setListings(mappedListings);
-        }
-
-        // 4. Load Pesanan Pembeli
-        const { data: dbOrders } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
-        if (dbOrders) {
-          setOrders(
-            dbOrders.map((o) => ({
-              no: o.no || `JL-${o.id}`,
-              itemsSummary: o.items_summary || o.itemsSummary || "",
-              items: typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []),
-              totalIkan: o.total_ikan || o.totalIkan || 0,
-              totalOngkir: o.total_ongkir || o.totalOngkir || 0,
-              status: o.status || "Sedang Diantar",
-              kurirNama: o.kurir_nama || o.kurirNama,
-              kurirPlat: o.kurir_plat || o.kurirPlat,
-              ratingPesanan: o.rating_pesanan || o.ratingPesanan,
-              ratingToko: o.rating_toko || o.ratingToko,
-              ratingKurir: o.rating_kurir || o.ratingKurir,
-              bayar: o.bayar,
-              tanggal: o.tanggal || "Baru saja",
-            }))
-          );
-        }
-      } catch (err) {
-        console.error("Gagal sinkronisasi Supabase database:", err);
       }
-    }
 
-    loadDataFromSupabase();
+      // 2. Listing & Ikan (Join listing + nelayan + ikan + rute)
+      const { data: dbListings, error: errListings } = await supabase
+        .from("listing")
+        .select(`
+          id,
+          harga_per_kg,
+          stok_kg,
+          status,
+          nelayan:nelayan_id ( nama, daerah ),
+          ikan:ikan_id ( nama_baku ),
+          rute:id ( biaya_rute, kota_tujuan )
+        `);
+
+      if (errListings) console.error("Error listing fetch:", errListings);
+
+      if (dbListings) {
+        const mappedListings: Listing[] = dbListings.map((l: any) => ({
+          id: l.id,
+          nama: l.ikan?.nama_baku || "Ikan Segar",
+          nelayan: l.nelayan?.nama || "Nelayan Lokal",
+          daerah: l.nelayan?.daerah || "Pesisir",
+          harga: Number(l.harga_per_kg) || 0,
+          stok: Number(l.stok_kg) || 0,
+          min: 1,
+          ongkirFlat: 8000,
+          jamTibaHub: "Besok 06.00 WIB",
+          jamAntarRumah: "07.00 - 10.00 WIB",
+          jam: "05.30 WIB",
+          rating: 5.0,
+          ulasanCount: 0,
+          alias: [],
+          desc: "Ikan segar tangkapan nelayan lokal langsung dimasukkan ke cold box higienis.",
+          reviews: []
+        }));
+
+        setListings(mappedListings);
+      }
+
+      // 3. Orders Real
+      const { data: dbOrders, error: errOrders } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          jumlah_kg,
+          ongkir_per_kg,
+          status_pengiriman,
+          tanggal_kirim,
+          listing (
+            harga_per_kg,
+            ikan ( nama_baku ),
+            nelayan ( nama )
+          )
+        `);
+
+      if (errOrders) console.error("Error orders fetch:", errOrders);
+
+      if (dbOrders) {
+        const mappedOrders: Order[] = dbOrders.map((o: any) => {
+          const hargaIkan = Number(o.listing?.harga_per_kg || 0);
+          const totalIkan = Number(o.jumlah_kg) * hargaIkan;
+          const totalOngkir = Number(o.jumlah_kg) * Number(o.ongkir_per_kg || 8000);
+          const namaIkan = o.listing?.ikan?.nama_baku || "Ikan Segar";
+          const namaNelayan = o.listing?.nelayan?.nama || "Nelayan";
+
+          let st: "Sedang Diantar" | "Menunggu Penjemputan" | "Selesai" = "Sedang Diantar";
+          if ((o.status_pengiriman || "").toLowerCase() === "selesai") {
+            st = "Selesai";
+          }
+
+          return {
+            rawId: o.id,
+            no: `JL-${o.id}`,
+            itemsSummary: `${o.jumlah_kg} kg ${namaIkan}`,
+            items: [
+              {
+                nama: namaIkan,
+                qty: Number(o.jumlah_kg),
+                harga: hargaIkan,
+                nelayan: namaNelayan,
+              }
+            ],
+            totalIkan,
+            totalOngkir,
+            status: st,
+            bayar: "QRIS",
+            tanggal: o.tanggal_kirim || "Hari ini"
+          };
+        });
+
+        setOrders(mappedOrders);
+      }
+    } catch (err) {
+      console.error("Gagal sinkronisasi Supabase database:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSupabaseData();
   }, []);
 
   const fishers = useMemo(() => Array.from(new Map(listings.map((l) => [l.nelayan, { nama: l.nelayan, daerah: l.daerah }])).values()), [listings]);
@@ -2033,7 +1996,7 @@ export default function Page() {
     let reply = "Stok aman, silakan langsung pesan lewat aplikasi JalaLink ya demi keamanan dan garansi kesegaran.";
     
     if (t.includes("besok")) {
-      reply = "Bisa, besok pagi ikan langsung masuk cold box dan dikirim ke titik kumpul Jatinangor.";
+      reply = "Bisa, besok pagi ikan langsung masuk cold box dan dikirim ke titik kumpul.";
     } else if (t.includes("tangkapan") || t.includes("hari ini")) {
       reply = "Tangkapan subuh ini segar-segar dan berkualitas tinggi, langsung dari perairan lokal siap kirim.";
     } else if (t.includes("stok")) {
@@ -2043,27 +2006,21 @@ export default function Page() {
     setTimeout(() => setMsgs((m) => ({ ...m, [who]: [...(m[who] ?? []), { me: false, text: reply }] })), 900);
   };
 
-  const sendTicketMsg = async (text: string) => {
+  const sendTicketMsg = (text: string) => {
     if (!activeTicketChatId) return;
-    
     const targetTicket = helpTickets.find((t) => t.id === activeTicketChatId);
     if (!targetTicket) return;
 
     const newMsgs = [...targetTicket.messages, { me: true, text }];
-    
     setHelpTickets((prev) => prev.map((t) => (t.id === activeTicketChatId ? { ...t, messages: newMsgs } : t)));
 
-    await supabase.from("help_tickets").update({ messages: JSON.stringify(newMsgs) }).eq("ticket_no", activeTicketChatId);
-
-    setTimeout(async () => {
+    setTimeout(() => {
       const replyMsgs = [...newMsgs, { me: false, text: "Terima kasih atas rinciannya. Tim Admin sedang menindaklanjuti tiket ini." }];
       setHelpTickets((prev) => prev.map((t) => (t.id === activeTicketChatId ? { ...t, messages: replyMsgs } : t)));
-      await supabase.from("help_tickets").update({ messages: JSON.stringify(replyMsgs) }).eq("ticket_no", activeTicketChatId);
     }, 1000);
   };
 
-  const handleCreateTicket = async (topik: string, subjek: string, pesan: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
+  const handleCreateTicket = (topik: string, subjek: string, pesan: string) => {
     const newId = `#TCK-${Math.floor(1000 + Math.random() * 9000)}`;
     const initialMsgs: Msg[] = [
       { me: true, text: pesan },
@@ -2081,20 +2038,23 @@ export default function Page() {
 
     setHelpTickets((prev) => [newTicket, ...prev]);
     setActiveTicketChatId(newId);
-
-    if (user) {
-      await supabase.from("help_tickets").insert([{
-        user_id: user.id,
-        ticket_no: newId,
-        topik,
-        subjek,
-        status: "Sedang Diproses",
-        tanggal: "Hari ini",
-        messages: JSON.stringify(initialMsgs)
-      }]);
-    }
-
     flash(`Tiket ${newId} berhasil dibuat`);
+  };
+
+  const handleReportLaporan = async (reason: string) => {
+    try {
+      await supabase.from("laporan").insert({
+        percakapan_id: chatWith || "Chat",
+        pelapor: userProfile.nama || "Pembeli",
+        alasan: reason,
+        pelapor_role: "Pembeli",
+        terlapor: chatWith || "Nelayan",
+        terlapor_role: "Nelayan"
+      });
+      flash(`Laporan terkirim: "${reason}". Tim JalaLink akan meninjau.`);
+    } catch (err) {
+      console.error(err);
+    }
   };
   
   const addToCart = (qty: number, langsungBeli: boolean) => {
@@ -2127,80 +2087,47 @@ export default function Page() {
   };
 
   const checkout = async (bayar: Metode, checkedItemsList: { listing: Listing; qty: number }[], totalIkan: number, totalOngkir: number) => {
-    const summary = checkedItemsList.map(i => `${i.qty} kg ${i.listing.nama}`).join(", ");
-    const itemsDetail: OrderItem[] = checkedItemsList.map(i => ({
-      nama: i.listing.nama,
-      qty: i.qty,
-      harga: i.listing.harga,
-      nelayan: i.listing.nelayan,
-    }));
-    
-    const newOrderNo = `JL-${1001 + orders.length}`;
-    const newOrder: Order = {
-      no: newOrderNo,
-      itemsSummary: summary,
-      items: itemsDetail,
-      totalIkan,
-      totalOngkir,
-      status: "Sedang Diantar",
-      kurirNama: "Ahmad Subagja",
-      kurirPlat: "D 4512 AB",
-      bayar,
-      tanggal: "Hari ini"
-    };
-
-    setOrders((o) => [newOrder, ...o]);
-
-    // Simpan ke Supabase Database
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("orders").insert([{
-        user_id: user?.id,
-        no: newOrderNo,
-        items_summary: summary,
-        items: JSON.stringify(itemsDetail),
-        total_ikan: totalIkan,
-        total_ongkir: totalOngkir,
-        status: "Sedang Diantar",
-        kurir_nama: "Ahmad Subagja",
-        kurir_plat: "D 4512 AB",
-        bayar,
-        tanggal: "Hari ini"
-      }]);
-
       for (const item of checkedItemsList) {
-        const nextStok = item.listing.stok - item.qty;
-        await supabase.from("ikan").update({ stok: nextStok }).eq("id", item.listing.id);
+        // Insert order ke database Supabase
+        const { error: errOrder } = await supabase.from("orders").insert({
+          pembeli_id: userProfile.id || null,
+          listing_id: item.listing.id,
+          jumlah_kg: item.qty,
+          tanggal_kirim: new Date().toISOString().split("T")[0],
+          ongkir_per_kg: item.listing.ongkirFlat,
+          status_pengiriman: "dipesan"
+        });
+
+        if (errOrder) console.error("Error insert order:", errOrder);
+
+        // Update sisa stok di database
+        const nextStok = Math.max(0, item.listing.stok - item.qty);
+        await supabase.from("listing").update({ stok_kg: nextStok }).eq("id", item.listing.id);
       }
+
+      await loadSupabaseData();
+
+      setCartItems((prev) => prev.filter((item) => !item.checked));
+      setCartOpen(false); 
+      go("pesanan"); 
+      flash("Pesanan berhasil dibuat & tersimpan ke database!");
     } catch (e) {
       console.error("Gagal simpan order ke Supabase:", e);
+      flash("Terjadi kesalahan saat memproses pesanan.");
     }
-
-    setListings((ls) => ls.map((x) => {
-      const found = checkedItemsList.find(c => c.listing.id === x.id);
-      return found ? { ...x, stok: x.stok - found.qty } : x;
-    }));
-
-    setCartItems((prev) => prev.filter((item) => !item.checked));
-    setCartOpen(false); 
-    go("pesanan"); 
-    flash("Pesanan berhasil dibuat");
   };
 
   const handleUpdateProfile = async (updated: UserProfile) => {
     setUserProfile(updated);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (userProfile.id) {
         await supabase.from("profiles").update({
           nama: updated.nama,
-          no_hp: updated.phone,
-          jalan_no: updated.jalanNo,
-          kota_kecamatan: updated.kotaKecamatan,
-          patokan: updated.patokan,
-          lat: updated.lat,
-          lng: updated.lng
-        }).eq("id", user.id);
+          email: updated.email,
+          area: updated.kotaKecamatan,
+          kendaraan: updated.patokan
+        }).eq("id", userProfile.id);
       }
     } catch (e) {
       console.error(e);
@@ -2247,6 +2174,7 @@ export default function Page() {
           <HomeView 
             listings={listings} 
             userName={userProfile.nama}
+            loading={loading}
             onOpen={(id) => { setOpenId(id); window.scrollTo({ top: 0 }); }} 
             onOpenFisher={(fisher) => { setSelectedFisher(fisher); window.scrollTo({ top: 0 }); }}
           />
@@ -2258,9 +2186,9 @@ export default function Page() {
           orders={orders} 
           onBrowse={() => go("home")} 
           onReview={setReviewForOrder} 
-          onDone={async (no) => { 
+          onDone={async (rawId, no) => { 
             setOrders((os) => os.map((o) => (o.no === no ? { ...o, status: "Selesai" } : o))); 
-            await supabase.from("orders").update({ status: "Selesai" }).eq("no", no);
+            await supabase.from("orders").update({ status_pengiriman: "selesai" }).eq("id", rawId);
             setReviewForOrder(no); 
           }} 
         />
@@ -2275,7 +2203,7 @@ export default function Page() {
             used={used} 
             onSend={send} 
             onBack={() => setChatWith(null)} 
-            onReport={(reason) => flash(`Laporan terkirim: "${reason}". Tim JalaLink akan meninjau.`)} 
+            onReport={handleReportLaporan} 
           />
         : <ChatList fishers={fishers} msgs={msgs} onOpen={openChat} />)}
 
@@ -2345,25 +2273,9 @@ export default function Page() {
           productName={detail.nama} 
           fisherName={detail.nelayan} 
           onClose={() => setIsDetailReviewOpen(false)} 
-          onSubmit={async (rPesanan, rToko, rKurir, note, mediaUrl, mediaType) => {
-            const newRev: ReviewItem = { id: Date.now(), user: userProfile.nama, rating: rPesanan, date: "Baru saja", comment: note, mediaUrl, mediaType };
-            
-            // Simpan Review ke Database
-            await supabase.from("reviews").insert([{
-              ikan_id: detail.id,
-              user_nama: userProfile.nama,
-              rating: rPesanan,
-              comment: note,
-              media_url: mediaUrl,
-              media_type: mediaType
-            }]);
-
-            const nextCount = detail.ulasanCount + 1;
-            const nextRating = Number(((detail.rating * detail.ulasanCount + rPesanan) / nextCount).toFixed(1));
-            
-            await supabase.from("ikan").update({ rating: nextRating, ulasan_count: nextCount }).eq("id", detail.id);
-
-            setListings((ls) => ls.map((x) => x.id === detail.id ? { ...x, rating: nextRating, ulasanCount: nextCount, reviews: [newRev, ...x.reviews] } : x));
+          onSubmit={async (rPesanan, rToko, rKurir, note) => {
+            const newRev: ReviewItem = { id: Date.now(), user: userProfile.nama, rating: rPesanan, date: "Baru saja", comment: note };
+            setListings((ls) => ls.map((x) => x.id === detail.id ? { ...x, reviews: [newRev, ...x.reviews] } : x));
             flash("Terima kasih! Ulasanmu berhasil dikirim.");
           }} 
         />
@@ -2376,7 +2288,6 @@ export default function Page() {
           onClose={() => setReviewForOrder(null)} 
           onSubmit={async (rPesanan, rToko, rKurir) => {
             setOrders((os) => os.map((o) => (o.no === reviewForOrder ? { ...o, ratingPesanan: rPesanan, ratingToko: rToko, ratingKurir: rKurir } : o)));
-            await supabase.from("orders").update({ rating_pesanan: rPesanan, rating_toko: rToko, rating_kurir: rKurir }).eq("no", reviewForOrder);
             flash("Terima kasih atas ulasan lengkapmu!");
           }} 
         />
