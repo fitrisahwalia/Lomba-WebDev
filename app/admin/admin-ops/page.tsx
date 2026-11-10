@@ -23,6 +23,13 @@ import {
   MapPin,
   Lock,
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const inp =
   "h-11 w-full rounded-2xl border border-soft/60 bg-white px-3.5 text-sm text-ink outline-none placeholder:text-soft focus:border-[#0d7a87] focus:ring-2 focus:ring-[#0d7a87]/10 transition-all";
@@ -258,12 +265,82 @@ export default function AdminOpsPage() {
   const [bsub, setBsub] = useState<"chat" | "faq">("chat");
   const [reply, setReply] = useState("");
   const [faq, setFaq] = useState(FAQ0);
-  const [lap, setLap] = useState(LAP0);
-  const [nel, setNel] = useState(NEL0);
+  const [lap, setLap] = useState<Laporan[]>([]);
+  const [nel, setNel] = useState<Nel[]>([]);
+  const [loading, setLoading] = useState(true);
   const [fotoIkan, setFotoIkan] = useState(FOTO0);
 
+  useEffect(() => {
+  async function fetchDataOps() {
+    setLoading(true);
+    try {
+      // 1. Fetch Data Nelayan dari Supabase
+      const { data: dataNelayan, error: errNel } = await supabase
+        .from("nelayan")
+        .select("*");
+
+      if (!errNel && dataNelayan && dataNelayan.length > 0) {
+        // Map kolom Supabase ke tipe data React
+        const mappedNel: Nel[] = dataNelayan.map((n: any) => ({
+          id: n.id,
+          nama: n.nama,
+          daerah: n.daerah,
+          titik: n.titik,
+          dok: n.dok || n.dokumen,
+          selfie: n.selfie,
+          rek: n.rek || n.rekening,
+          geotag: n.geotag,
+          status: n.status,
+          listing: n.listing || 0,
+          keterangan: n.keterangan,
+          adminVerif: n.admin_verif || n.adminVerif,
+        }));
+        setNel(mappedNel);
+      } else {
+        setNel(NEL0); // Fallback ke dummy jika DB kosong
+      }
+
+      // 2. Fetch Data Laporan dari Supabase
+      const { data: dataLaporan, error: errLap } = await supabase
+        .from("laporan")
+        .select("*");
+
+      if (!errLap && dataLaporan && dataLaporan.length > 0) {
+        const mappedLap: Laporan[] = dataLaporan.map((l: any) => ({
+          id: l.id,
+          jenis: l.jenis,
+          pelaporRole: l.pelapor_role || l.pelaporRole,
+          pelapor: l.pelapor,
+          terlaporRole: l.terlapor_role || l.terlaporRole,
+          terlapor: l.terlapor,
+          alasan: l.alasan,
+          bukti: l.bukti,
+          prioritas: l.prioritas,
+          tanggal: l.tanggal,
+          selesai: l.selesai,
+          tindakan: l.tindakan,
+          alasanTindakan: l.alasan_tindakan || l.alasanTindakan,
+          adminVerif: l.admin_verif || l.adminVerif,
+          chatLog: l.chat_log || l.chatLog,
+        }));
+        setLap(mappedLap);
+      } else {
+        setLap(LAP0); // Fallback ke dummy jika DB kosong
+      }
+    } catch (err) {
+      console.error("Gagal ambil data Supabase:", err);
+      setNel(NEL0);
+      setLap(LAP0);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  fetchDataOps();
+  }, []);
+
   const [adminProfile, setAdminProfile] = useState({
-    nama: "Budi Santoso",
+    nama: "Budi Santoso (Temporary Ops)",
     email: "budi.ops@jalalink.id",
     role: "Admin Ops",
     kode: "ADM-OPS-02",
@@ -464,16 +541,30 @@ export default function AdminOpsPage() {
     flash(`${selFoto.length} Foto Ikan disetujui`);
   };
 
-  const eksekusiKonfirmasi = () => {
-    if (!confirm) return;
-    const alasan = alasanInput.trim();
+  const eksekusiKonfirmasi = async () => {
+  if (!confirm) return;
+  const alasan = alasanInput.trim();
 
-    if (!alasan) {
-      flash("Catatan/Alasan tindakan wajib diisi!");
-      return;
-    }
+  if (!alasan) {
+    flash("Catatan/Alasan tindakan wajib diisi!");
+    return;
+  }
 
+  try {
     if (confirm.type === "nelayan") {
+      // Update ke Tabel Supabase 'nelayan'
+      const { error } = await supabase
+        .from("nelayan")
+        .update({
+          status: confirm.targetStatus,
+          keterangan: alasan,
+          admin_verif: ADMIN_ID,
+        })
+        .eq("id", confirm.id);
+
+      if (error) console.warn("Supabase Warning (Nelayan):", error.message);
+
+      // Update Tampilan UI Lokal
       setNel((ns) =>
         ns.map((n) =>
           n.id === confirm.id
@@ -483,6 +574,16 @@ export default function AdminOpsPage() {
       );
       setDetailNel(null);
     } else if (confirm.type === "foto") {
+      // Update ke Tabel Supabase 'foto_ikan' (opsional jika ada tabelnya)
+      await supabase
+        .from("foto_ikan")
+        .update({
+          status: confirm.targetStatus,
+          keterangan: alasan,
+          admin_verif: ADMIN_ID,
+        })
+        .eq("id", confirm.id);
+
       setFotoIkan((fs) =>
         fs.map((f) =>
           f.id === confirm.id
@@ -492,6 +593,19 @@ export default function AdminOpsPage() {
       );
       setDetailFoto(null);
     } else if (confirm.type === "laporan") {
+      // Update ke Tabel Supabase 'laporan'
+      const { error } = await supabase
+        .from("laporan")
+        .update({
+          selesai: true,
+          tindakan: confirm.targetStatus,
+          alasan_tindakan: alasan,
+          admin_verif: ADMIN_ID,
+        })
+        .eq("id", confirm.id);
+
+      if (error) console.warn("Supabase Warning (Laporan):", error.message);
+
       setLap((ls) =>
         ls.map((l) =>
           l.id === confirm.id
@@ -506,10 +620,16 @@ export default function AdminOpsPage() {
         )
       );
     }
+
+    flash(`Tindakan berhasil disimpan oleh ${ADMIN_ID}`);
+  } catch (err) {
+    console.error("Error eksekusi:", err);
+    flash("Gagal memperbarui database!");
+  } finally {
     setConfirm(null);
     setAlasanInput("");
-    flash(`Tindakan berhasil disimpan oleh ${ADMIN_ID}`);
-  };
+  }
+};
 
   const simpanSandiBaru = () => {
     if (!formSandi.lama || !formSandi.baru || !formSandi.konfirmasi) {
