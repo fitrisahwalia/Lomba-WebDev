@@ -732,20 +732,19 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing, Stok, dan Pesanan Berdasarkan ID Nelayan atau Nama Sesuai Sesi Akun Aktif
+  // 2. Fetch Data Listing, Stok, dan Pesanan Berdasarkan Relasi ERD Database Supabase
   useEffect(() => {
     async function fetchDatabaseData() {
-      if (!nelayanProfile) return;
-
       try {
-        // Ambil data listing ikan dengan join ke tabel ikan dan nelayan
+        // Ambil data listing lengkap dengan relasi ke tabel ikan dan tabel nelayan sesuai ERD
         const { data: listingData, error: listingError } = await supabase
           .from("listing")
-          .select("*, ikan(nama_baku), nelayan(id, nama)");
+          .select("*, ikan(nama_baku), nelayan(id, nama, daerah)");
 
         if (!listingError && listingData) {
-          // Filter data secara aman di client maupun di level database untuk mencocokkan nelayan aktif
+          // Sinkronisasi cerdas: Cocokkan listing berdasarkan nelayan_id atau nama profil yang login
           const filteredListing = listingData.filter((item: any) => {
+            if (!nelayanProfile) return true;
             if (nelayanProfile.id && item.nelayan_id) {
               return item.nelayan_id === nelayanProfile.id;
             }
@@ -753,7 +752,7 @@ export default function NelayanPage() {
               return item.nelayan.nama.toLowerCase().includes(nelayanProfile.nama.toLowerCase()) ||
                      nelayanProfile.nama.toLowerCase().includes(item.nelayan.nama.toLowerCase());
             }
-            // Fallback jika id/relasi belum ter-bind sempurna tapi row ada
+            // Fallback aman jika data listing belum ter-bind ID tapi ada isinya
             return true;
           });
 
@@ -763,7 +762,7 @@ export default function NelayanPage() {
             harga: item.harga_per_kg || 0,
             stok: item.stok_kg || 0,
             habis: item.status === "habis" || item.stok_kg === 0,
-            sumber: (item.sumber || "Web") as "Web" | "Telegram" | "Admin",
+            sumber: (item.sumber || "Telegram") as "Web" | "Telegram" | "Admin",
             waktu: item.tanggal_tangkap ? new Date(item.tanggal_tangkap).toLocaleDateString("id-ID") : now(),
             rating: 0,
             totalUlasan: 0,
@@ -772,21 +771,13 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-        // Ambil data orders yang relevan
+        // Ambil data orders yang berelasi dengan profiles dan listing
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
           .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku), nelayan(nama))");
 
-        if (!ordersError && ordersData) {
-          const filteredOrders = ordersData.filter((ord: any) => {
-            if (!ord.listing) return false;
-            if (nelayanProfile.id && ord.listing.nelayan_id) {
-              return ord.listing.nelayan_id === nelayanProfile.id;
-            }
-            return true;
-          });
-
-          const formattedPesanan = filteredOrders.map((ord: any) => ({
+        if (!ordersError && ordersData && nelayanProfile) {
+          const formattedPesanan = ordersData.map((ord: any) => ({
             no: `JL-${ord.id}`,
             teks: `${ord.jumlah_kg} kg ${ord.listing?.ikan?.nama_baku || "Ikan Segar"}`,
             pembeli: ord.profiles?.nama || "Pembeli JalaLink",
