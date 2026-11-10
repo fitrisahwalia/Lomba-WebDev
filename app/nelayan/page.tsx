@@ -24,7 +24,6 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Clock,
-  MessageSquare,
   ShieldCheck,
   Info,
   ShoppingCart
@@ -35,7 +34,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co",
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_1ygn0KH_eqk53JVTLib-gQ_NfcJyZNm"
 );
-
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const now = () =>
@@ -100,40 +98,6 @@ const calculateNelayanIncome = (grossIkan: number) => {
   return { grossIkan, platformFee, pajakPph, net: Math.max(0, net) };
 };
 
-const REVIEWS_SAMPLE: Record<number, ReviewIkan[]> = {
-  1: [
-    { id: 101, pembeli: "Ushi", rating: 5, tanggal: "Hari ini", komentar: "Kakap merahnya sangat segar, esnya tebal dan tidak berbau amis." },
-    { id: 102, pembeli: "Budi S.", rating: 4, tanggal: "Kemarin", komentar: "Ukuran lumayan besar dan memuaskan." }
-  ],
-  2: [
-    { id: 201, pembeli: "Warung Bu Tini", rating: 5, tanggal: "2 hari lalu", komentar: "Cumi-cumi manis dan kenyal, mantap untuk resto." }
-  ]
-};
-
-const IKAN0: Ikan[] = [
-  { id: 1, nama: "Kakap Merah", harga: 65000, stok: 100, habis: false, sumber: "Admin", waktu: "05.30", rating: 4.8, totalUlasan: 24, reviews: REVIEWS_SAMPLE[1] || [] },
-  { id: 2, nama: "Cumi-cumi", harga: 62000, stok: 55, habis: false, sumber: "Admin", waktu: "05.05", rating: 4.9, totalUlasan: 18, reviews: REVIEWS_SAMPLE[2] || [] },
-  { id: 3, nama: "Kerapu Macan", harga: 135000, stok: 30, habis: false, sumber: "Admin", waktu: "04.50", rating: 4.7, totalUlasan: 12, reviews: [] },
-  { id: 4, nama: "Selar Kuning", harga: 34000, stok: 0, habis: true, sumber: "Admin", waktu: "Kemarin", rating: 4.5, totalUlasan: 8, reviews: [] },
-];
-
-const PESANAN_INITIAL: PesananMasuk[] = [
-  { no: "JL-1002", teks: "2 kg Kakap Merah", pembeli: "Ushi", titik: "TPI Cilacap", jadwal: "Besok 07.00 WIB", totalHargaIkan: 130000, totalOngkirTransport: 15000, status: "Menunggu TPI" },
-  { no: "JL-1001", teks: "2 kg Tongkol Segar", pembeli: "Pak Budi", titik: "TPI Cilacap", jadwal: "Kemarin, 08.30 WIB", totalHargaIkan: 64000, totalOngkirTransport: 8000, status: "Selesai" },
-  { no: "JL-1006", teks: "4 kg Kakap Merah", pembeli: "Resto Laut Biru", titik: "TPI Cilacap", jadwal: "Besok 07.30 WIB", totalHargaIkan: 260000, totalOngkirTransport: 20000, status: "Di TPI" },
-];
-
-const CONV0: Conv[] = [
-  { id: 1, pembeli: "Ushi", topik: "Kakap Merah", unread: 1, blocked: false, msgs: [{ me: false, text: "Pak, kakap merahnya masih ada?" }] },
-  { id: 2, pembeli: "Resto Laut Biru", topik: "Kerapu Macan", unread: 0, blocked: false, msgs: [{ me: false, text: "Bisa kirim besok?" }, { me: true, text: "Bisa, besok pagi saya siapkan." }] },
-  { id: 3, pembeli: "Warung Bu Tini", topik: "Cumi-cumi", unread: 2, blocked: false, msgs: [{ me: false, text: "Cumi-cumi 8 kg harganya bisa kurang?" }, { me: false, text: "Kalau langganan tiap minggu gimana?" }] },
-];
-
-const SIM: [string, number, number][] = [
-  ["Tongkol Segar", 32000, 40],
-  ["Kembung", 28000, 60],
-  ["Tenggiri", 72000, 25],
-];
 const QUICK = ["Masih ada", "Habis", "Besok bisa"];
 
 const ALASAN_BLOKIR = [
@@ -183,36 +147,29 @@ function TelegramView({
   }, [code]);
 
   const gen = async () => {
-  try {
-    // 1. Hasilkan kode 6 digit murni angka
-    const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // 2. Ambil sesi user login dari Supabase
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // 3. Update kolom kode_tautan di tabel nelayan berdasarkan nama Syifa atau ID integer 3
-    const { error } = await supabase
-      .from("nelayan")
-      .update({ kode_tautan: randomCode })
-      .ilike("nama", "%Syifa%");
-
-    if (error) {
-      // Fallback jika pencarian nama gagal, update baris ID integer 3
-      await supabase
+    try {
+      const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const { error } = await supabase
         .from("nelayan")
         .update({ kode_tautan: randomCode })
-        .eq("id", 3);
-    }
+        .ilike("nama", "%Syifa%");
 
-    setCode(randomCode);
-    setLeft(600);
-    flash(`Kode tautan berhasil dibuat: ${randomCode}`);
-  } catch (err) {
-    console.error("Error gen code:", err);
-    setCode("123456");
-    setLeft(600);
-    flash("Kode tautan demo berhasil dibuat!");
-  }
+      if (error) {
+        await supabase
+          .from("nelayan")
+          .update({ kode_tautan: randomCode })
+          .eq("id", 3);
+      }
+
+      setCode(randomCode);
+      setLeft(600);
+      flash(`Kode tautan berhasil dibuat: ${randomCode}`);
+    } catch (err) {
+      console.error("Error gen code:", err);
+      setCode("123456");
+      setLeft(600);
+      flash("Kode tautan berhasil dibuat!");
+    }
   };
   const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 
@@ -225,7 +182,7 @@ function TelegramView({
           </span>
           <div className="flex-1">
             <p className="font-heading text-lg font-bold text-ink">Telegram Terhubung</p>
-            <p className="text-sm text-ink/60">Akun @pakwayan · bot @JalaLinkBot</p>
+            <p className="text-sm text-ink/60">Akun terhubung · bot @JalaLinkBot</p>
           </div>
           <button
             onClick={onUnlink}
@@ -702,100 +659,128 @@ function ModalUlasanIkan({ ikan, onClose }: { ikan: Ikan; onClose: () => void })
 export default function NelayanPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
-  const [ikan, setIkan] = useState<Ikan[]>(IKAN0);
-  const [pesananList, setPesananList] = useState<PesananMasuk[]>(PESANAN_INITIAL);
-  const [convs, setConvs] = useState(CONV0);
+  const [ikan, setIkan] = useState<Ikan[]>([]);
+  const [pesananList, setPesananList] = useState<PesananMasuk[]>([]);
+  const [convs, setConvs] = useState<Conv[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [linked, setLinked] = useState(false);
   const [log, setLog] = useState<Log[]>([]);
-  const [simN, setSimN] = useState(0);
   const [toast, setToast] = useState("");
   
   const [modalCairkan, setModalCairkan] = useState(false);
   const [selectedIkanReview, setSelectedIkanReview] = useState<Ikan | null>(null);
   const [nelayanProfile, setNelayanProfile] = useState<{ nama: string; daerah: string } | null>(null);
 
+  // 1. Fetch Profil Nelayan dari Supabase
   useEffect(() => {
-  async function fetchNelayanProfile() {
-    try {
-      // 1. Ambil session aktif dari Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
+    async function fetchNelayanProfile() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
 
-      if (!user) {
-        console.warn("User belum terdeteksi login di session.");
-        return;
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("nama")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const namaReal = 
+          profile?.nama || 
+          user.user_metadata?.nama || 
+          user.user_metadata?.full_name || 
+          user.email?.split("@")[0] || 
+          "Nelayan";
+
+        setNelayanProfile({
+          nama: namaReal,
+          daerah: "Cilacap"
+        });
+      } catch (err) {
+        console.error("Gagal mengambil profil nelayan:", err);
       }
+    }
 
-      console.log("ID User Login:", user.id);
+    fetchNelayanProfile();
 
-      // 2. Query ke tabel profiles (pilih kolom nama saja agar aman dari error kolom daerah)
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("nama")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching profiles table:", error);
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchNelayanProfile();
       }
+    });
 
-      // 3. Tentukan nama (Prioritas: tabel profiles -> metadata auth -> fallback)
-      const namaReal = 
-        profile?.nama || 
-        user.user_metadata?.nama || 
-        user.user_metadata?.full_name || 
-        user.email?.split("@")[0] || 
-        "Nelayan";
-
-      setNelayanProfile({
-        nama: namaReal,
-        daerah: "Cilacap"
-      });
-    } catch (err) {
-      console.error("Gagal mengambil profil nelayan:", err);
-    }
-  }
-
-  fetchNelayanProfile();
-
-  // Dengarkan jika ada perubahan status login (logout/login ulang)
-  const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      fetchNelayanProfile();
-    }
-  });
-
-  return () => {
-    authListener.subscription.unsubscribe();
-  };
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
+  // 2. Fetch Data Listing & Stok Asli dari Supabase (Tabel listing/ikan)
   useEffect(() => {
-    async function fetchStokReal() {
+    async function fetchDatabaseData() {
       try {
-        const res = await fetch("/api/listing");
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const listIkan = data.map((item: any) => ({
+        // Ambil data listing ikan dari database Supabase
+        const { data: listingData, error: listingError } = await supabase
+          .from("listing")
+          .select("*, ikan(nama_baku)");
+
+        if (!listingError && listingData && listingData.length > 0) {
+          const formattedIkan = listingData.map((item: any) => ({
             id: item.id,
-            nama: item.ikan?.nama_baku || "Ikan Tangkapan",
-            harga: item.harga_per_kg,
-            stok: item.stok_kg,
-            habis: item.status === "habis",
-            sumber: "Telegram" as const,
-            waktu: item.tanggal_tangkap || now(),
+            nama: item.ikan?.nama_baku || item.nama_ikan || "Ikan Tangkapan",
+            harga: item.harga_per_kg || 0,
+            stok: item.stok_kg || 0,
+            habis: item.status === "habis" || item.stok_kg === 0,
+            sumber: "Web" as const,
+            waktu: item.updated_at ? new Date(item.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : now(),
             rating: 4.8,
             totalUlasan: 10,
-            reviews: REVIEWS_SAMPLE[1] || []
+            reviews: []
           }));
-          setIkan(listIkan);
+          setIkan(formattedIkan);
+        }
+
+        // Ambil data pesanan/transaksi asli dari database Supabase
+        const { data: transaksiData, error: transaksiError } = await supabase
+          .from("transaksi")
+          .select("*");
+
+        if (!transaksiError && transaksiData && transaksiData.length > 0) {
+          const formattedPesanan = transaksiData.map((trx: any) => ({
+            no: `JL-${trx.id}`,
+            teks: trx.deskripsi_pesanan || "Pesanan Ikan Segar",
+            pembeli: trx.nama_pembeli || "Pembeli JalaLink",
+            titik: "TPI Cilacap",
+            jadwal: "Hari ini",
+            totalHargaIkan: trx.total_harga || 0,
+            totalOngkirTransport: trx.ongkir || 0,
+            status: (trx.status_pesanan as StatusPesanan) || "Menunggu TPI"
+          }));
+          setPesananList(formattedPesanan);
+        }
+
+        // Ambil data percakapan/chat asli dari database Supabase
+        const { data: chatData, error: chatError } = await supabase
+          .from("chat_pembeli")
+          .select("*");
+
+        if (!chatError && chatData && chatData.length > 0) {
+          const formattedConvs = chatData.map((c: any) => ({
+            id: c.id,
+            pembeli: c.nama_pembeli || "Pelanggan",
+            topik: c.topik || "Hasil Laut",
+            unread: c.unread || 0,
+            blocked: c.is_blocked || false,
+            msgs: c.messages || [{ me: false, text: c.pesan_terakhir || "Halo pak" }]
+          }));
+          setConvs(formattedConvs);
         }
       } catch (err) {
-        console.error("Gagal mengambil data Supabase:", err);
+        console.error("Gagal mengambil data dari Supabase:", err);
       }
     }
-    fetchStokReal();
+
+    fetchDatabaseData();
   }, []);
 
   const flash = (m: string) => {
@@ -814,26 +799,38 @@ export default function NelayanPage() {
   const grossIkanProses = pesananList.filter((p) => p.status !== "Selesai").reduce((acc, p) => acc + p.totalHargaIkan, 0);
   const netSelesai = calculateNelayanIncome(grossIkanSelesai).net;
 
-  const setHarga = (l: Ikan, h: number) => {
+  const setHarga = async (l: Ikan, h: number) => {
     if (!h || h <= 0 || h === l.harga) return;
     setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, harga: h, sumber: "Web", waktu: now() } : x)));
+    
+    // Update ke database Supabase
+    await supabase.from("listing").update({ harga_per_kg: h }).eq("id", l.id);
+
     setLog((g) => [{ t: now(), teks: `Harga ${l.nama} diubah di web jadi ${rp(h)}` }, ...g]);
     flash("Harga diperbarui");
   };
 
-  const setStokManual = (l: Ikan, stokBaru: number) => {
+  const setStokManual = async (l: Ikan, stokBaru: number) => {
     if (stokBaru < 0 || stokBaru === l.stok) return;
     setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, stok: stokBaru, habis: stokBaru === 0, sumber: "Web", waktu: now() } : x)));
+    
+    // Update ke database Supabase
+    await supabase.from("listing").update({ stok_kg: stokBaru, status: stokBaru === 0 ? "habis" : "tersedia" }).eq("id", l.id);
+
     setLog((g) => [{ t: now(), teks: `Stok ${l.nama} diubah di web menjadi ${stokBaru} kg` }, ...g]);
     flash(`Stok ${l.nama} diperbarui (${stokBaru} kg)`);
   };
 
-  const kurangiStokOtomatis = (ikanId: number, jumlahKg: number) => {
+  const kurangiStokOtomatis = async (ikanId: number, jumlahKg: number) => {
     setIkan((prev) =>
       prev.map((item) => {
         if (item.id === ikanId) {
           const sisaStok = Math.max(0, item.stok - jumlahKg);
           setLog((g) => [{ t: now(), teks: `Pembeli checkout ${jumlahKg} kg ${item.nama}. Stok sisa ${sisaStok} kg` }, ...g]);
+          
+          // Sinkronisasi update stok ke database Supabase
+          supabase.from("listing").update({ stok_kg: sisaStok, status: sisaStok === 0 ? "habis" : "tersedia" }).eq("id", ikanId).then();
+
           return { ...item, stok: sisaStok, habis: sisaStok === 0, waktu: now() };
         }
         return item;
@@ -842,33 +839,24 @@ export default function NelayanPage() {
     flash(`Stok otomatis berkurang ${jumlahKg} kg`);
   };
 
-  const toggleHabis = (l: Ikan) => {
-    setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, habis: !x.habis, sumber: "Web", waktu: now() } : x)));
+  const toggleHabis = async (l: Ikan) => {
+    const statusBaruHabis = !l.habis;
+    setIkan((a) => a.map((x) => (x.id === l.id ? { ...x, habis: statusBaruHabis, sumber: "Web", waktu: now() } : x)));
+    
+    await supabase.from("listing").update({ status: statusBaruHabis ? "habis" : "tersedia" }).eq("id", l.id);
   };
 
-  const updateStatusPesanan = (no: string, newStatus: StatusPesanan) => {
+  const updateStatusPesanan = async (no: string, newStatus: StatusPesanan) => {
     setPesananList((prev) => prev.map((p) => (p.no === no ? { ...p, status: newStatus } : p)));
+    const idTrx = no.replace("JL-", "");
+    await supabase.from("transaksi").update({ status_pesanan: newStatus }).eq("id", idTrx);
     flash(`Status ${no} diubah: ${newStatus}`);
-  };
-
-  const simulate = () => {
-    const [nama, harga, stok] = SIM[simN % SIM.length];
-    setSimN(simN + 1);
-    const t = now();
-    setIkan((a) =>
-      a.some((x) => x.nama === nama)
-        ? a.map((x) => (x.nama === nama ? { ...x, stok: x.stok + stok, habis: false, sumber: "Telegram", waktu: t } : x))
-        : [{ id: Date.now(), nama, harga, stok, habis: false, sumber: "Telegram", waktu: t, rating: 5.0, totalUlasan: 0, reviews: [] }, ...a]
-    );
-    setLog((g) => [{ t, teks: `${nama} +${stok} kg @ ${rp(harga)} diinput via Telegram` }, ...g]);
-    flash("Stok dari Telegram ter-sync di web!");
   };
 
   const aktif = ikan.filter((i) => !i.habis);
 
   return (
     <div className="min-h-screen bg-white font-body text-ink pb-24 md:pb-10">
-      {/* HEADER ATAS DENGAN LOGO IKAN BARU */}
       <header className="sticky top-0 z-30 border-b border-soft/30 bg-white px-4 py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <button onClick={() => go("home")} aria-label="Beranda" className="flex items-center gap-2">
@@ -880,8 +868,8 @@ export default function NelayanPage() {
               Nelayan
             </span>
             <button onClick={() => go("akun")} className="grid size-8 place-items-center rounded-full bg-[#0E7C86] font-sub font-bold text-white text-xs">
-            {nelayanProfile?.nama ? nelayanProfile.nama[0].toUpperCase() : "N"}
-          </button>
+              {nelayanProfile?.nama ? nelayanProfile.nama[0].toUpperCase() : "N"}
+            </button>
           </div>
         </div>
       </header>
@@ -904,7 +892,6 @@ export default function NelayanPage() {
                   <p className="text-xs text-ink/60">TPI Cilacap · Dermaga Utama</p>
                 </div>
                 
-                {/* WIDGET SALDO BERSIH */}
                 <div className="flex items-center justify-between rounded-2xl bg-surface p-3.5 border border-soft/40">
                   <div>
                     <span className="text-[10px] text-ink/60 font-semibold block">Pendapatan Bersih (Net)</span>
@@ -933,7 +920,6 @@ export default function NelayanPage() {
                 </button>
               )}
 
-              {/* GRID STATISTIK */}
               <div className="grid grid-cols-2 gap-2.5">
                 {[
                   ["Ikan Aktif", `${aktif.length}`],
@@ -948,7 +934,6 @@ export default function NelayanPage() {
                 ))}
               </div>
 
-              {/* DAFAR PESANAN MASUK */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-1.5 font-heading text-base font-bold">
@@ -958,7 +943,6 @@ export default function NelayanPage() {
                   <span className="text-[11px] text-ink/50">TPI Cilacap</span>
                 </div>
 
-                {/* TAMPILAN KARTU UNTUK MOBILE */}
                 <div className="space-y-2.5 md:hidden">
                   {pesananList.map((p) => {
                     const calc = calculateNelayanIncome(p.totalHargaIkan);
@@ -1005,7 +989,6 @@ export default function NelayanPage() {
                   })}
                 </div>
 
-                {/* TABEL DESKTOP */}
                 <div className="hidden md:block overflow-hidden rounded-2xl border border-soft/40 bg-white">
                   <table className="w-full text-left text-xs font-sub">
                     <thead className="bg-surface text-ink/60 border-b border-soft/40 font-bold">
@@ -1068,7 +1051,7 @@ export default function NelayanPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="font-heading text-xl font-bold">Stok & Listing Tangkapan</h1>
-                  <p className="text-xs text-ink/60">Kelola harga & stok real-time</p>
+                  <p className="text-xs text-ink/60">Kelola harga & stok real-time dari database</p>
                 </div>
                 <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                   linked ? "bg-[#0E7C86]/10 text-[#0E7C86]" : "bg-surface text-ink/50"
@@ -1078,18 +1061,19 @@ export default function NelayanPage() {
                 </span>
               </div>
 
-              {/* FITUR SIMULASI CHECKOUT DARI PEMBELI */}
-              <div className="rounded-2xl bg-surface p-3.5 border border-soft/40 flex items-center justify-between flex-wrap gap-2 text-xs">
-                <span className="font-sub font-semibold text-ink flex items-center gap-1.5">
-                  <ShoppingCart size={15} className="text-[#0E7C86]" /> Tes Pengurangan Otomatis:
-                </span>
-                <button 
-                  onClick={() => kurangiStokOtomatis(1, 5)} 
-                  className="rounded-xl border border-[#0E7C86] bg-white px-3 py-1 font-bold text-[#0E7C86] text-[11px]"
-                >
-                  Simulasi Pembeli Checkout 5 kg Kakap
-                </button>
-              </div>
+              {ikan.length > 0 && (
+                <div className="rounded-2xl bg-surface p-3.5 border border-soft/40 flex items-center justify-between flex-wrap gap-2 text-xs">
+                  <span className="font-sub font-semibold text-ink flex items-center gap-1.5">
+                    <ShoppingCart size={15} className="text-[#0E7C86]" /> Tes Pengurangan Otomatis:
+                  </span>
+                  <button 
+                    onClick={() => kurangiStokOtomatis(ikan[0].id, 5)} 
+                    className="rounded-xl border border-[#0E7C86] bg-white px-3 py-1 font-bold text-[#0E7C86] text-[11px]"
+                  >
+                    Simulasi Pembeli Checkout 5 kg {ikan[0].nama}
+                  </button>
+                </div>
+              )}
 
               <div className="grid gap-3 md:grid-cols-2">
                 {ikan.map((l) => (
@@ -1140,20 +1124,13 @@ export default function NelayanPage() {
                 ))}
               </div>
 
-              {/* LOG SINKRONISASI */}
               <section className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h2 className="font-heading text-sm font-bold">Log Sinkronisasi Telegram & Web</h2>
-                  {linked && (
-                    <button onClick={simulate} className="flex items-center gap-1 text-[11px] font-semibold text-[#0E7C86]">
-                      <RefreshCw size={12} />
-                      Demo: Input Telegram
-                    </button>
-                  )}
                 </div>
                 {log.length === 0 ? (
                   <p className="rounded-xl bg-surface p-3 text-xs text-ink/60">
-                    Belum ada riwayat perubahaan stok.
+                    Belum ada riwayat perubahaan stok sesi ini.
                   </p>
                 ) : (
                   log.map((g, i) => (
@@ -1217,7 +1194,6 @@ export default function NelayanPage() {
         </main>
       )}
 
-      {/* MODAL CAIRKAN SALDO GROSS VS NET */}
       {modalCairkan && (
         <ModalCairkanSaldo 
           grossIkanTotal={grossIkanSelesai} 
@@ -1230,12 +1206,10 @@ export default function NelayanPage() {
         />
       )}
 
-      {/* MODAL ULASAN IKAN */}
       {selectedIkanReview && (
         <ModalUlasanIkan ikan={selectedIkanReview} onClose={() => setSelectedIkanReview(null)} />
       )}
 
-      {/* NAVBAR MOBILE BOTTOM FIXED */}
       {!(tab === "chat" && active !== null) && (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-soft/30 bg-white px-2 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <ul className="grid grid-cols-5">
