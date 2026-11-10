@@ -130,9 +130,8 @@ export default function AdminPage() {
     kode: "TR-01"
   });
 
-  // 2. Pengecekan role Super Admin
-  const currentRole = (adminProfile.role || "").toLowerCase();
-  const isSuperAdmin = currentRole === "superadmin" || currentRole === "admin";
+// Pengecekan role (Akses penuh untuk Admin Transport)
+  const isSuperAdmin = true;
 
   // 3. Fetch profil asli dari Supabase
   useEffect(() => {
@@ -290,11 +289,7 @@ export default function AdminPage() {
   const NAV = [["ringkasan", "Beranda", Home, 0], ["bantuan", "Bantuan", LifeBuoy, nTiket], ["laporan", "Laporan", ShieldAlert, nLap], ["nelayan", "Verifikasi", Store, nNel + nFoto], ["tarif", "Kelola", SlidersHorizontal, nTarif + nTransPending]] as const;
   const isOn = (k: Tab) => (k === "tarif" ? tab === "tarif" || tab === "master" : tab === k);
   
-  const go = (k: Tab) => { 
-    if ((k === "tarif" || k === "master") && !isSuperAdmin) {
-      flash("Akses Terbatas: Fitur Kelola Tarif & Master hanya untuk Super Admin");
-      return;
-    }
+const go = (k: Tab) => { 
     setTab(k); 
     setSel(null); 
     window.scrollTo({ top: 0 }); 
@@ -550,12 +545,11 @@ export default function AdminPage() {
                   key={k} 
                   onClick={() => go(k)} 
                   className={`flex items-center gap-2 rounded-full px-4 py-2 font-sub text-sm font-semibold transition-all ${
-                    isOn(k) ? "bg-brand text-white shadow-sm" : disabled ? "text-ink/30 cursor-not-allowed" : "text-ink hover:bg-surface"
+                    isOn(k) ? "bg-brand text-white shadow-sm" : "text-ink hover:bg-surface"
                   }`}
                 >
                   {l}
-                  {disabled && <Lock size={12} className="text-ink/30" />}
-                  {n > 0 && !disabled && <span className={`grid size-5 place-items-center rounded-full text-[11px] font-bold ${isOn(k) ? "bg-white text-brand" : "bg-brand text-white"}`}>{n}</span>}
+                  {n > 0 && <span className={`grid size-5 place-items-center rounded-full text-[11px] font-bold ${isOn(k) ? "bg-white text-brand" : "bg-brand text-white"}`}>{n}</span>}
                 </button>
               );
             })}
