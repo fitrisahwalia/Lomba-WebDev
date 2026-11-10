@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { setSession } from "@/lib/session"; // Import penanganan session
 import {
   Eye,
   EyeOff,
@@ -143,8 +144,9 @@ export default function LoginPage() {
   }, []);
 
   const redirectByRole = (targetRole: string) => {
-    let targetPath = "/buyer";
+    let targetPath = "/katalog";
 
+    // PERBAIKAN: Pisahkan rute admintransport, kurir, dan supir!
     switch (targetRole) {
       case "superadmin":
         targetPath = "/admin/super-admin";
@@ -154,18 +156,22 @@ export default function LoginPage() {
         targetPath = "/admin/admin-ops";
         break;
       case "admintransport":
-      case "kurir":
-      case "supir":
         targetPath = "/transport/admin_transport";
+        break;
+      case "kurir":
+        targetPath = "/transport/kurir"; // Rute khusus kurir
+        break;
+      case "supir":
+        targetPath = "/transport/supir"; // Rute khusus supir
         break;
       case "nelayan":
         targetPath = "/nelayan";
         break;
       case "pembeli":
-        targetPath = "/buyer";
+        targetPath = "/katalog";
         break;
       default:
-        targetPath = "/buyer";
+        targetPath = "/katalog";
         break;
     }
 
@@ -199,24 +205,26 @@ export default function LoginPage() {
         return;
       }
 
-      // 2. Ambil role dari User Metadata bawaan Auth (jika ada)
-      let targetRole = authData.user.user_metadata?.role?.toLowerCase().replace(/[\s_]/g, "");
+      // 2. Cari data role asli dari tabel profiles
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nama, role")
+        .eq("id", authData.user.id)
+        .maybeSingle();
 
-      // 3. Jika metadata tidak ada, query ke tabel profiles
-      if (!targetRole) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", authData.user.id)
-          .maybeSingle();
+      const finalRole = profile?.role?.toLowerCase() || authData.user.user_metadata?.role?.toLowerCase() || "pembeli";
+      const userNama = profile?.nama || authData.user.user_metadata?.nama || "User";
 
-        if (profile?.role) {
-          targetRole = profile.role.toLowerCase().replace(/[\s_]/g, "");
-        }
-      }
+      // 3. PERBAIKAN: Simpan ke session storage / local storage agar useSession() tidak bingung
+      setSession(
+        {
+          email: v,
+          nama: userNama,
+          role: finalRole as any,
+        },
+        remember
+      );
 
-      // 4. Tentukan rute akhir (fallback ke pembeli jika kosong)
-      const finalRole = targetRole || "pembeli";
       if (remember) {
         localStorage.setItem("jalalink_remember", v);
       } else {
@@ -225,7 +233,7 @@ export default function LoginPage() {
 
       setOk("Berhasil masuk. Mengalihkan ke portal...");
 
-      // 5. Eksekusi redirect sesuai role
+      // 4. Eksekusi redirect ke portal yang sesuai
       redirectByRole(finalRole);
 
     } catch (error: any) {
