@@ -1,5 +1,5 @@
 import { Bot, webhookCallback } from "grammy";
-import { handleJualFlow } from "@/bot/flows/jual";
+import { handleJualFlow, handlePhotoFlow } from "@/bot/flows/jual";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kewjzlhgrkacyrjlboaa.supabase.co";
@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const token = process.env.TELEGRAM_BOT_TOKEN || "";
 const bot = new Bot(token);
 
-// Helper function untuk memproses penautan kode
+
 async function prosesTautkanKode(ctx: any, kode: string) {
   const chatId = ctx.chat?.id;
 
@@ -88,6 +88,7 @@ bot.command("stok_habis", async (ctx) => {
   await ctx.reply("📦 Semua listing aktif Anda telah diubah statusnya menjadi *Habis*.", { parse_mode: "Markdown" });
 });
 
+// Handler untuk pesan berupa TEKS
 bot.on("message:text", async (ctx) => {
   const chatId = ctx.chat?.id;
   const { data: session } = await supabase.from("bot_session").select("*").eq("chat_id", chatId).maybeSingle();
@@ -98,6 +99,16 @@ bot.on("message:text", async (ctx) => {
   }
 
   await handleJualFlow(ctx, session);
+});
+
+// 2. Tambahkan Handler khusus untuk FOTO di sini
+bot.on("message:photo", async (ctx) => {
+  const chatId = ctx.chat?.id;
+  const { data: session } = await supabase.from("bot_session").select("*").eq("chat_id", chatId).maybeSingle();
+
+  if (!session) return;
+
+  await handlePhotoFlow(ctx, session);
 });
 
 export async function POST(req: Request) {
