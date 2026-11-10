@@ -77,7 +77,7 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
           <input value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} placeholder="Rute atau area tugas" className={inp} />
           <button disabled={!ok || submitting} onClick={buat} className={`${pri} w-full flex items-center justify-center gap-2`}>
             {submitting && <RefreshCw size={16} className="animate-spin" />}
-            {submitting ? "Menyimpan ke Database..." : "Buat Akun"}
+            {submitting ? "Menyimpan ke Database & Auth..." : "Buat Akun"}
           </button>
         </>)}
       </div>
@@ -128,7 +128,7 @@ export default function AdminTransportPage() {
     try {
       const { data: dataTim } = await supabase
         .from("profiles")
-        .select("id, nama, role, email, kendaraan, area")
+        .select("id, nama, role, email, kota_kecamatan, patokan")
         .in("role", ["supir", "kurir", "Supir", "Kurir"]);
 
       if (dataTim) {
@@ -138,8 +138,8 @@ export default function AdminTransportPage() {
             nama: t.nama || "Tanpa Nama",
             peran: t.role?.toLowerCase() === "supir" ? "Supir" : "Kurir",
             email: t.email || "",
-            kendaraan: t.kendaraan || "-",
-            area: t.area || "-",
+            kendaraan: t.patokan || "-",
+            area: t.kota_kecamatan || "-",
             aktif: true,
           }))
         );
@@ -228,40 +228,55 @@ export default function AdminTransportPage() {
   const badge: Partial<Record<Tab, number>> = { tim: nLam };
   const isOn = (k: Tab) => tab === k;
 
+  // PERBAIKAN: Mendaftarkan ke Supabase Auth + Profil Database
   const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // Tanpa menyertakan kolom 'aktif' agar kompatibel dengan tabel profiles Supabase saat ini
-      const { data: newProfile, error } = await supabase
-        .from("profiles")
-        .insert([
-          {
+      // 1. Daftarkan email dan password ke Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: a.email,
+        password: pw,
+        options: {
+          data: {
             nama: a.nama,
             role: a.peran.toLowerCase(),
-            email: a.email,
-            kendaraan: a.kendaraan,
-            area: a.area,
           },
-        ])
-        .select()
-        .single();
+        },
+      });
 
-      if (error) {
-        console.error("Error insert profile:", error);
-        flash(`Gagal simpan: ${error.message}`);
+      if (authError) {
+        console.error("Error Auth SignUp:", authError);
+        flash(`Gagal daftar Auth: ${authError.message}`);
         return false;
       }
 
-      if (newProfile) {
-        setTim((t) => [...t, { ...a, id: newProfile.id, aktif: true }]);
+      const newUserId = authData.user?.id;
+
+      // 2. Simpan atau perbarui profil ke tabel 'profiles'
+      const { error: profileError } = await supabase.from("profiles").upsert([
+        {
+          id: newUserId, // Mengaitkan dengan ID Auth Supabase
+          nama: a.nama,
+          role: a.peran.toLowerCase(),
+          email: a.email,
+          kota_kecamatan: a.area,
+          patokan: a.kendaraan,
+        },
+      ]);
+
+      if (profileError) {
+        console.error("Error Insert Profiles:", profileError);
+        flash(`Gagal simpan profil: ${profileError.message}`);
+        return false;
       }
+
+      setTim((t) => [...t, { ...a, id: newUserId || Date.now(), aktif: true }]);
 
       if (sheet?.prefill) {
         await supabase.from("kurir_lamaran").update({ status: "Disetujui" }).eq("id", sheet.prefill.id);
         setLam((l) => l.map((x) => (x.id === sheet.prefill!.id ? { ...x, status: "Disetujui" } : x)));
       }
 
-      flash("Akun anggota berhasil dibuat di database!");
-      void pw;
+      flash("Akun tim berhasil didaftarkan! Supir/Kurir bisa login sekarang.");
       return true;
     } catch (err) {
       console.error(err);
