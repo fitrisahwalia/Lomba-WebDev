@@ -44,11 +44,24 @@ const NAV: { k: Tab; label: string; Icon: typeof Home }[] = [
 ];
 
 /* ---- sheet buat akun kurir/supir ---- */
-function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; onClose: () => void; onCreate: (a: Omit<Anggota, "id" | "aktif">, pw: string) => void }) {
+function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; onClose: () => void; onCreate: (a: Omit<Anggota, "id" | "aktif">, pw: string) => Promise<boolean> }) {
   const [f, setF] = useState({ nama: prefill?.nama ?? "", peran: (prefill?.peran ?? "Kurir") as "Supir" | "Kurir", email: "", kendaraan: prefill?.kendaraan ?? "", area: prefill?.area ?? "" });
   const [res, setRes] = useState<{ email: string; pw: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const ok = f.nama.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim());
-  const buat = () => { const pw = Math.random().toString(36).slice(2, 10); onCreate({ ...f, nama: f.nama.trim(), email: f.email.trim() }, pw); setRes({ email: f.email.trim(), pw }); };
+
+  const buat = async () => {
+    if (!ok || submitting) return;
+    setSubmitting(true);
+    const pw = Math.random().toString(36).slice(2, 10);
+    const success = await onCreate({ ...f, nama: f.nama.trim(), email: f.email.trim() }, pw);
+    if (success) {
+      setRes({ email: f.email.trim(), pw });
+    }
+    setSubmitting(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
@@ -64,7 +77,10 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
           <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="Email login (mis. nama+transport@gmail.com)" className={inp} />
           <input value={f.kendaraan} onChange={(e) => setF({ ...f, kendaraan: e.target.value })} placeholder="Kendaraan / plat" className={inp} />
           <input value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} placeholder="Rute atau area tugas" className={inp} />
-          <button disabled={!ok} onClick={buat} className={`${pri} w-full`}>Buat Akun</button>
+          <button disabled={!ok || submitting} onClick={buat} className={`${pri} w-full flex items-center justify-center gap-2`}>
+            {submitting && <RefreshCw size={16} className="animate-spin" />}
+            {submitting ? "Menyimpan ke Database..." : "Buat Akun"}
+          </button>
         </>)}
       </div>
     </div>
@@ -115,11 +131,12 @@ export default function AdminTransportPage() {
     setLoading(true);
     try {
       // 1. Fetch Tim (Profiles dengan role supir/kurir)
-      const { data: dataTim } = await supabase
+      const { data: dataTim, error: errTim } = await supabase
         .from("profiles")
         .select("id, nama, role, email, kendaraan, area, aktif")
         .in("role", ["supir", "kurir", "Supir", "Kurir"]);
 
+      if (errTim) console.error("Error profiles:", errTim);
       if (dataTim) {
         setTim(
           dataTim.map((t) => ({
@@ -221,30 +238,47 @@ export default function AdminTransportPage() {
   const badge: Partial<Record<Tab, number>> = { tim: nLam };
   const isOn = (k: Tab) => tab === k;
 
-  const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string) => {
+  const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // Simpan ke Supabase Database
+      // Simpan langsung ke Supabase (tabel profiles)
       const { data: newProfile, error } = await supabase
         .from("profiles")
-        .insert([{ nama: a.nama, role: a.peran.toLowerCase(), email: a.email, kendaraan: a.kendaraan, area: a.area, aktif: true }])
+        .insert([
+          {
+            nama: a.nama,
+            role: a.peran.toLowerCase(),
+            email: a.email,
+            kendaraan: a.kendaraan,
+            area: a.area,
+            aktif: true,
+          },
+        ])
         .select()
         .single();
 
-      if (!error && newProfile) {
+      if (error) {
+        console.error("Error insert profile:", error);
+        flash(`Gagal simpan ke database: ${error.message}`);
+        return false;
+      }
+
+      if (newProfile) {
         setTim((t) => [...t, { ...a, id: newProfile.id, aktif: true }]);
-      } else {
-        setTim((t) => [...t, { ...a, id: Date.now(), aktif: true }]);
       }
 
       if (sheet?.prefill) {
         await supabase.from("kurir_lamaran").update({ status: "Disetujui" }).eq("id", sheet.prefill.id);
         setLam((l) => l.map((x) => (x.id === sheet.prefill!.id ? { ...x, status: "Disetujui" } : x)));
       }
-      flash("Akun anggota berhasil dibuat di database");
+
+      flash("Akun anggota berhasil dibuat di database!");
+      void pw;
+      return true;
     } catch (err) {
       console.error(err);
+      flash("Terjadi kesalahan jaringan.");
+      return false;
     }
-    void pw;
   };
 
   const toggleAktifAnggota = async (a: Anggota) => {
@@ -274,7 +308,7 @@ export default function AdminTransportPage() {
     flash("Pengajuan tarif terkirim");
   };
 
-  const simpanPenugasanSupir = async (ruteId: string | number, supirId?: number) => {
+  const simpanPenugasanSupir = async (ruteId: string | number, supirId?: number | string) => {
     setRute((rs) => rs.map((x) => (x.id === ruteId ? { ...x, supirId } : x)));
     await supabase.from("rute_pengiriman").update({ supir_id: supirId }).eq("id", ruteId);
     flash("Penugasan disimpan");
@@ -324,7 +358,7 @@ export default function AdminTransportPage() {
                 <div className="flex items-start justify-between"><div><p className="flex items-center gap-1 font-heading text-lg font-bold"><Truck size={18} className="text-brand" />{r.nama}</p><p className="text-sm text-ink/60">{r.hari} · berangkat {r.jam} · kapasitas {r.kap} kg</p></div><Pill>{kg}/{r.kap} kg</Pill></div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-soft/30"><div className="h-full bg-brand transition-all" style={{ width: `${Math.min(100, (kg / r.kap) * 100)}%` }} /></div>
                 <label className="block text-xs text-ink/60">Supir bertugas
-                  <select value={r.supirId ?? ""} onChange={(e) => simpanPenugasanSupir(r.id, e.target.value ? Number(e.target.value) : undefined)} className={`${inp} mt-1`}>
+                  <select value={r.supirId ?? ""} onChange={(e) => simpanPenugasanSupir(r.id, e.target.value || undefined)} className={`${inp} mt-1`}>
                     <option value="">Belum ditugaskan</option>{aktif.filter((a) => a.peran === "Supir").map((a) => <option key={a.id} value={a.id}>{a.nama} · {a.kendaraan}</option>)}
                   </select></label>
               </div>); })}
