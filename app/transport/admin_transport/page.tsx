@@ -116,8 +116,7 @@ export default function AdminPage() {
   const [tarif, setTarif] = useStore<Tarif[]>("tarif", TARIF0);
   const [fotoIkan, setFotoIkan] = useState(FOTO0);
 
-  // 1. Izinkan akses sesi untuk semua role admin & transport
-  const { session } = useSession(["admintransport", "transport", "admin", "superadmin", "Admin Transport"]);
+  const { session } = useSession(["admintransport", "transport", "admin", "superadmin"]);
 
   const [adminProfile, setAdminProfile] = useState<{
     nama: string;
@@ -127,32 +126,30 @@ export default function AdminPage() {
   }>({
     nama: "Memuat...",
     email: "Memuat...",
-    role: "Admin Transport",
+    role: "admintransport",
     kode: "TR-01"
   });
 
-  // 2. Logika penentuan Super Admin yang fleksibel (case-insensitive)
+  // 2. Pengecekan role Super Admin
   const currentRole = (adminProfile.role || "").toLowerCase();
-  const isSuperAdmin = currentRole === "superadmin" || currentRole === "admin" || currentRole === "super admin";
+  const isSuperAdmin = currentRole === "superadmin" || currentRole === "admin";
 
-  // 3. Fetch profil asli pengguna langsung dari tabel Supabase `profiles`
+  // 3. Fetch profil asli dari Supabase
   useEffect(() => {
     async function loadRealProfile() {
       try {
-        // Ambil data user yang sedang aktif dari Supabase Auth
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
-          // Query ke tabel profiles di Supabase berdasarkan UUID user
-          const { data: profile, error } = await supabase
+          const { data: profile } = await supabase
             .from("profiles")
             .select("nama, role")
             .eq("id", user.id)
             .maybeSingle();
 
-          if (!error && profile) {
-            const userRole = profile.role || user.user_metadata?.role || "admintransport";
-            const userNama = profile.nama || user.user_metadata?.nama || user.email?.split("@")[0] || "Admin Transport";
+          if (profile) {
+            const userRole = profile.role || "admintransport";
+            const userNama = profile.nama || user.email?.split("@")[0] || "Admin Transport";
 
             setAdminProfile({
               nama: userNama,
@@ -164,7 +161,6 @@ export default function AdminPage() {
           }
         }
 
-        // Fallback jika menggunakan sesi lokal
         if (session) {
           setAdminProfile({
             nama: session.nama || "Admin Transport",
