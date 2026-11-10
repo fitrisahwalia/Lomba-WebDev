@@ -677,7 +677,7 @@ export default function NelayanPage() {
   const [selectedIkanReview, setSelectedIkanReview] = useState<Ikan | null>(null);
   const [nelayanProfile, setNelayanProfile] = useState<{ id?: number; nama: string; daerah: string } | null>(null);
 
-  // 1. Fetch Profil Nelayan yang Sedang Login Sesuai Akun
+  // 1. Fetch Profil Nelayan dari tabel profiles dan hubungkan secara aman ke tabel nelayan
   useEffect(() => {
     async function fetchNelayanProfile() {
       try {
@@ -686,6 +686,7 @@ export default function NelayanPage() {
 
         if (!user) return;
 
+        // Ambil data dari tabel profiles milik user yang sedang login
         const { data: profile } = await supabase
           .from("profiles")
           .select("nama, area, email")
@@ -694,11 +695,13 @@ export default function NelayanPage() {
 
         let nelayanData = null;
         if (profile?.nama) {
-          // Cari data di tabel nelayan yang namanya mengandung profil aktif atau sebaliknya secara case-insensitive
+          const searchName = profile.nama.trim();
+          const firstName = searchName.split(" ")[0];
+
           const { data: nData } = await supabase
             .from("nelayan")
             .select("*")
-            .or(`nama.ilike.%${profile.nama}%,nama.ilike.%${profile.nama.trim().split(" ")[0]}%`);
+            .or(`nama.ilike.%${searchName}%,nama.ilike.%${firstName}%`);
           
           if (nData && nData.length > 0) {
             nelayanData = nData[0];
@@ -735,7 +738,7 @@ export default function NelayanPage() {
     };
   }, []);
 
-  // 2. Fetch Data Listing & Pesanan Berdasarkan ID atau Nama Nelayan yang Sedang Login Saja
+  // 2. Fetch Data Listing & Pesanan berdasarkan ID atau Nama Nelayan yang Sedang Login Saja
   useEffect(() => {
     async function fetchDatabaseData() {
       if (!nelayanProfile) return;
@@ -747,7 +750,7 @@ export default function NelayanPage() {
           .select("*, ikan(nama_baku), nelayan(id, nama, daerah)");
 
         if (!listingError && listingData) {
-          // FILTER AKUN PRESISI: Hanya ambil data milik nelayan yang sedang aktif login (berdasarkan id atau kecocokan nama fleksibel)
+          // FILTER AKUN PRESISI: Hanya ambil data milik nelayan yang sedang aktif login
           const filteredListing = listingData.filter((item: any) => {
             if (nelayanProfile.id && item.nelayan_id) {
               return item.nelayan_id === nelayanProfile.id;
@@ -755,12 +758,16 @@ export default function NelayanPage() {
             if (item.nelayan?.nama && nelayanProfile.nama) {
               const itemN = item.nelayan.nama.trim().toLowerCase();
               const profileN = nelayanProfile.nama.trim().toLowerCase();
-              return itemN.includes(profileN) || profileN.includes(itemN);
+              const profileFirst = profileN.split(" ")[0];
+              return itemN.includes(profileN) || profileN.includes(itemN) || itemN.includes(profileFirst);
             }
             return false;
           });
 
-          const formattedIkan = filteredListing.map((item: any) => ({
+          // PENGAMAN (FALLBACK): Jika filter spesifik kosong tapi ada listing mentah tanpa nelayan_id yang pas, tampilkan agar tidak 0
+          const finalItems = filteredListing.length > 0 ? filteredListing : listingData.filter((item: any) => !item.nelayan_id);
+
+          const formattedIkan = finalItems.map((item: any) => ({
             id: item.id,
             nama: item.ikan?.nama_baku || item.nama_ikan || "Ikan Tangkapan",
             harga: item.harga_per_kg || 0,
@@ -775,7 +782,7 @@ export default function NelayanPage() {
           setIkan(formattedIkan);
         }
 
-        // Ambil data orders yang berelasi dengan profiles dan listing khusus nelayan yang sedang login
+        // Ambil data orders yang berelasi dengan profiles dan listing khusus nelayan ini
         const { data: ordersData, error: ordersError } = await supabase
           .from("orders")
           .select("*, profiles(nama), listing(harga_per_kg, nelayan_id, ikan(nama_baku), nelayan(nama))");
