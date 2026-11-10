@@ -168,10 +168,10 @@ export default function LoginPage() {
         targetPath = "/nelayan";
         break;
       case "pembeli":
-        targetPath = "/katalog";
+        targetPath = "/buyer";
         break;
       default:
-        targetPath = "/katalog";
+        targetPath = "/buyer";
         break;
     }
 
