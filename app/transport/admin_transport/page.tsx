@@ -116,6 +116,8 @@ export default function AdminPage() {
   const [tarif, setTarif] = useStore<Tarif[]>("tarif", TARIF0);
   const [fotoIkan, setFotoIkan] = useState(FOTO0);
 
+  const { session } = useSession(["admintransport", "transport", "admin", "superadmin"]);
+
   const [adminProfile, setAdminProfile] = useState<{
     nama: string;
     email: string;
@@ -128,10 +130,18 @@ export default function AdminPage() {
     kode: "TR-01"
   });
 
-  const isSuperAdmin = adminProfile.role === "Super Admin";
-  const { session } = useSession(["admintransport", "transport", "admin", "superadmin"]);
+  const isSuperAdmin = adminProfile.role === "Super Admin" || adminProfile.role === "admin" || adminProfile.role === "superadmin";
+
+  // 2. Baru panggil useEffect yang menggunakan variabel session
   useEffect(() => {
-    if (session) setAdminProfile((p) => ({ ...p, nama: session.nama, email: session.email, role: session.role === "superadmin" ? "Super Admin" : "Admin Operational" }));
+    if (session) {
+      setAdminProfile({
+        nama: session.nama || "Admin Transport",
+        email: session.email || "transport@jalalink.com",
+        role: session.role === "superadmin" ? "Super Admin" : "Admin Transport",
+        kode: session.role === "superadmin" ? "ADM-01" : "TR-01"
+      });
+    }
   }, [session]);
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -253,14 +263,15 @@ export default function AdminPage() {
     window.scrollTo({ top: 0 }); 
   };
 
+  // Ganti fungsi toggleRoleSimulasi lama dengan ini:
   const toggleRoleSimulasi = () => {
-    const nextRole = adminProfile.role === "Super Admin" ? "Admin Operational" : "Super Admin";
+    const nextRole = adminProfile.role === "Super Admin" ? "Admin Transport" : "Super Admin";
     setAdminProfile(prev => ({
       ...prev,
       role: nextRole,
-      nama: nextRole === "Super Admin" ? "Admin Utama" : "Budi (Operational)"
+      nama: nextRole === "Super Admin" ? "Admin Utama" : "Budi (Transport)"
     }));
-    if (nextRole === "Admin Operational" && (tab === "tarif" || tab === "master")) {
+    if (nextRole === "Admin Transport" && (tab === "tarif" || tab === "master")) {
       setTab("ringkasan");
     }
     flash(`Role beralih ke: ${nextRole}`);
