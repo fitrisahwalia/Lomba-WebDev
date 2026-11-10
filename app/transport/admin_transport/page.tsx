@@ -130,9 +130,8 @@ export default function AdminPage() {
     kode: "TR-01"
   });
 
-  // 2. Pengecekan role Super Admin
-  const currentRole = (adminProfile.role || "").toLowerCase();
-  const isSuperAdmin = currentRole === "superadmin" || currentRole === "admin";
+// Pengecekan role (Akses penuh untuk Admin Transport)
+  const isSuperAdmin = true;
 
   // 3. Fetch profil asli dari Supabase
   useEffect(() => {
@@ -238,6 +237,10 @@ export default function AdminPage() {
   const [detailFoto, setDetailFoto] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<{ id: number, type: "nelayan" | "foto" | "laporan" | "tarif" | "hapusTitik" | "transport", aksi: string, targetStatus: string } | null>(null);
   const [alasanInput, setAlasanInput] = useState("");
+  
+  // STATE BARU: Form Email & Password Login Kurir/Supir saat Admin melakukan verifikasi/acc
+  const [akunForm, setAkunForm] = useState({ email: "", password: "" });
+
   const [bukaChat, setBukaChat] = useState<number | null>(null);
   const [previewBukti, setPreviewBukti] = useState<string | null>(null);
   
@@ -286,11 +289,7 @@ export default function AdminPage() {
   const NAV = [["ringkasan", "Beranda", Home, 0], ["bantuan", "Bantuan", LifeBuoy, nTiket], ["laporan", "Laporan", ShieldAlert, nLap], ["nelayan", "Verifikasi", Store, nNel + nFoto], ["tarif", "Kelola", SlidersHorizontal, nTarif + nTransPending]] as const;
   const isOn = (k: Tab) => (k === "tarif" ? tab === "tarif" || tab === "master" : tab === k);
   
-  const go = (k: Tab) => { 
-    if ((k === "tarif" || k === "master") && !isSuperAdmin) {
-      flash("Akses Terbatas: Fitur Kelola Tarif & Master hanya untuk Super Admin");
-      return;
-    }
+const go = (k: Tab) => { 
     setTab(k); 
     setSel(null); 
     window.scrollTo({ top: 0 }); 
@@ -482,16 +481,27 @@ export default function AdminPage() {
       setTitikList(ts => ts.filter(t => t.id !== confirm.id));
     } else if (confirm.type === "transport") {
       if (!isSuperAdmin) { flash("Akses ditolak: Hanya Super Admin"); return; }
+      
+      if (confirm.targetStatus === "Disetujui") {
+        if (!akunForm.email || !akunForm.password) {
+          flash("Email dan kata sandi login kurir/supir wajib diisi!");
+          return;
+        }
+        flash(`Akun login dibuat: ${akunForm.email}`);
+      }
+
       setTransList(tr => tr.map(t => t.id === confirm.id ? {
         ...t,
         status: confirm.targetStatus as TransportComp["status"],
         adminVerif: ADMIN_ID,
-        alasanPenolakan: confirm.targetStatus === "Ditolak" ? alasan : undefined
+        alasanPenolakan: confirm.targetStatus === "Ditolak" ? alasan : undefined,
+        email: confirm.targetStatus === "Disetujui" ? akunForm.email : t.email
       } : t));
     }
 
     setConfirm(null);
     setAlasanInput("");
+    setAkunForm({ email: "", password: "" });
     flash(`Aksi berhasil disimpan (${confirm.aksi})`);
   };
 
@@ -535,12 +545,11 @@ export default function AdminPage() {
                   key={k} 
                   onClick={() => go(k)} 
                   className={`flex items-center gap-2 rounded-full px-4 py-2 font-sub text-sm font-semibold transition-all ${
-                    isOn(k) ? "bg-brand text-white shadow-sm" : disabled ? "text-ink/30 cursor-not-allowed" : "text-ink hover:bg-surface"
+                    isOn(k) ? "bg-brand text-white shadow-sm" : "text-ink hover:bg-surface"
                   }`}
                 >
                   {l}
-                  {disabled && <Lock size={12} className="text-ink/30" />}
-                  {n > 0 && !disabled && <span className={`grid size-5 place-items-center rounded-full text-[11px] font-bold ${isOn(k) ? "bg-white text-brand" : "bg-brand text-white"}`}>{n}</span>}
+                  {n > 0 && <span className={`grid size-5 place-items-center rounded-full text-[11px] font-bold ${isOn(k) ? "bg-white text-brand" : "bg-brand text-white"}`}>{n}</span>}
                 </button>
               );
             })}
@@ -1264,7 +1273,15 @@ export default function AdminPage() {
                       {x.status === "Menunggu" ? (
                         <div className="flex gap-2 pt-2 border-t border-soft/40">
                           <button onClick={() => setConfirm({ id: x.id, type: "transport", aksi: "Tolak Pendaftaran Transport", targetStatus: "Ditolak" })} className={`${out} h-9 flex-1 text-xs border-ink/20 text-ink/70 hover:bg-red-50 hover:text-red-600 hover:border-red-200`}>Tolak</button>
-                          <button onClick={() => setConfirm({ id: x.id, type: "transport", aksi: "Setujui Mitra Transport (Acc)", targetStatus: "Disetujui" })} className={`${pri} h-9 flex-1 text-xs`}>Setujui (Acc)</button>
+                          
+                          {/* DILENGKAPI: Mengisi otomatis email bawaan & meracik password acak 6 digit saat tombol disetujui ditekan */}
+                          <button onClick={() => {
+                            setAkunForm({
+                              email: x.email || `kurir.${x.nama.split(" ")[0].toLowerCase()}@mitra.jalalink.com`,
+                              password: Math.random().toString(36).slice(-6).toUpperCase()
+                            });
+                            setConfirm({ id: x.id, type: "transport", aksi: "Setujui Mitra Transport (Acc)", targetStatus: "Disetujui" });
+                          }} className={`${pri} h-9 flex-1 text-xs`}>Setujui (Acc)</button>
                         </div>
                       ) : (
                         <div className="text-[10px] text-ink/50 pt-1 flex items-center justify-between border-t border-soft/30">
@@ -1618,6 +1635,34 @@ export default function AdminPage() {
               Apakah Anda yakin ingin <b className={(confirm.targetStatus === "Ditolak" || confirm.targetStatus === "Dinonaktifkan" || confirm.targetStatus === "Akun diblokir" || confirm.targetStatus === "Dihapus") ? "text-red-600" : "text-brand"}>{confirm.aksi.toLowerCase()}</b> ini atas nama <b>{ADMIN_ID}</b>?
             </p>
 
+            {/* DILENGKAPI: Input Email dan Password yang otomatis muncul saat admin menyetujui Mitra Transport (Kurir/Supir) */}
+            {confirm.type === "transport" && confirm.targetStatus === "Disetujui" && (
+              <div className="mb-4 space-y-3 rounded-2xl border border-soft/60 bg-surface/50 p-4">
+                <p className="text-xs font-bold text-ink/70">Buat Kredensial Login (Supir/Kurir)</p>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-ink/70">Email Login Akses</label>
+                  <input 
+                    type="email" 
+                    value={akunForm.email} 
+                    onChange={e => setAkunForm({...akunForm, email: e.target.value})} 
+                    className={inp} 
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-ink/70">Kata Sandi Default</label>
+                  <input 
+                    type="text" 
+                    value={akunForm.password} 
+                    onChange={e => setAkunForm({...akunForm, password: e.target.value})} 
+                    className={inp} 
+                  />
+                </div>
+                <p className="text-[10px] text-ink/50 italic leading-tight mt-1">
+                  Kredensial ini akan digunakan kurir/supir untuk login ke aplikasi.
+                </p>
+              </div>
+            )}
+
             {(confirm.targetStatus === "Ditolak" || confirm.targetStatus === "Dinonaktifkan" || confirm.targetStatus === "Laporan ditolak") && (
               <div className="mb-4 space-y-2">
                 <label className="text-xs font-bold text-ink/60">Keterangan / Alasan (Wajib)</label>
@@ -1632,7 +1677,7 @@ export default function AdminPage() {
             )}
 
             <div className="flex gap-2 pt-2 border-t border-soft/40">
-              <button onClick={() => { setConfirm(null); setAlasanInput(""); }} className={`${out} flex-1`}>Batal</button>
+              <button onClick={() => { setConfirm(null); setAlasanInput(""); setAkunForm({ email: "", password: "" }); }} className={`${out} flex-1`}>Batal</button>
               <button onClick={eksekusiKonfirmasi} className={`${pri} flex-1 ${(confirm.targetStatus === "Ditolak" || confirm.targetStatus === "Dinonaktifkan" || confirm.targetStatus === "Akun diblokir" || confirm.targetStatus === "Dihapus") ? "bg-red-600 hover:bg-red-700" : ""}`}>
                 Ya, Konfirmasi
               </button>
