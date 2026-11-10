@@ -53,10 +53,11 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
         <div className="flex items-center justify-between"><h2 className="font-heading text-xl font-bold">{res ? "Akun Dibuat!" : "Buat Akun Tim"}</h2><button onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft" aria-label="Tutup"><X size={18} /></button></div>
         {res ? (<>
-          <p className="text-sm text-ink/70">Salin dan berikan akun ini kepada <b>{f.nama}</b> untuk login.</p>
+          <p className="text-sm text-ink/70">Salin dan berikan akun ini kepada <b>{f.nama}</b> untuk login sebagai {f.peran}.</p>
           <div className="space-y-2 rounded-2xl bg-surface p-4 text-sm border border-brand/20">
             <p>Email: <b className="font-mono text-ink">{res.email}</b></p>
             <p>Password Login: <b className="font-mono text-brand text-base select-all">{res.pw}</b></p>
+            <p>Peran: <b className="font-sub text-ink">{f.peran}</b></p>
           </div>
           <button onClick={() => {
             navigator.clipboard?.writeText(`Email: ${res.email}\nPassword: ${res.pw}`);
@@ -97,7 +98,6 @@ export default function AdminTransportPage() {
   const loadDataReal = async () => {
     setLoading(true);
     try {
-      // 1. Fetch profiles sesuai skema (role supir & kurir)
       const { data: dataTim, error: errTim } = await supabase
         .from("profiles")
         .select("id, nama, role, email, area, kendaraan, aktif")
@@ -119,7 +119,6 @@ export default function AdminTransportPage() {
         );
       }
 
-      // 2. Fetch lamaran dari tabel 'lamaran_transport'
       const { data: dataLam } = await supabase.from("lamaran_transport").select("*");
       if (dataLam) {
         setLam(
@@ -135,7 +134,6 @@ export default function AdminTransportPage() {
         );
       }
 
-      // 3. Fetch rute dari tabel 'rute'
       const { data: dataRute } = await supabase.from("rute").select("*");
       if (dataRute) {
         setRute(
@@ -150,7 +148,6 @@ export default function AdminTransportPage() {
         );
       }
 
-      // 4. Fetch orders dari tabel 'orders'
       const { data: dataOrders } = await supabase.from("orders").select("id, jumlah_kg, ongkir_per_kg, status_pengiriman");
       if (dataOrders) {
         setOrders(
@@ -182,14 +179,17 @@ export default function AdminTransportPage() {
 
   const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // 1. Daftarkan Auth ke Supabase
+      // Menetapkan nilai role huruf kecil persis sesuai CHECK constraint ('supir' / 'kurir')
+      const targetRole = a.peran.toLowerCase() === "supir" ? "supir" : "kurir";
+
+      // 1. Daftarkan Auth ke Supabase dengan metadata role terikat
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: a.email,
         password: pw,
         options: {
           data: {
             nama: a.nama,
-            role: a.peran.toLowerCase(),
+            role: targetRole,
           },
         },
       });
@@ -206,13 +206,13 @@ export default function AdminTransportPage() {
         return false;
       }
 
-      // 2. Simpan/Update ke tabel 'profiles' menggunakan .upsert() agar anti-duplicate key
+      // 2. Paksa simpan/update role 'supir' / 'kurir' ke tabel 'profiles'
       const { error: profileError } = await supabase.from("profiles").upsert(
         [
           {
             id: newUserId,
             nama: a.nama,
-            role: a.peran.toLowerCase(),
+            role: targetRole,
             email: a.email,
             area: a.area,
             kendaraan: a.kendaraan,
@@ -235,7 +235,7 @@ export default function AdminTransportPage() {
         setLam((l) => l.map((x) => (x.id === sheet.prefill!.id ? { ...x, status: "Disetujui" } : x)));
       }
 
-      flash("Akun tim berhasil dibuat & siap login!");
+      flash(`Akun ${a.peran} berhasil dibuat & siap login!`);
       return true;
     } catch (err) {
       console.error(err);
