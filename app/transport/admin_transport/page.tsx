@@ -15,7 +15,7 @@ const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const PT = "CV Bahari Cold Chain";
 const FEE = 10;
 type Tab = "beranda" | "pesanan" | "tim" | "uang" | "akun";
-type Anggota = { id: string | number; nama: string; peran: "Supir" | "Kurir"; email: string; kendaraan: string; area: string; aktif: boolean };
+type Anggota = { id: string | number; nama: string; peran: "Supir" | "Kurir"; email: string; kendaraan: string; area: string; aktif: boolean; tempPassword?: string };
 type Lamaran = { id: string | number; nama: string; peran: "Supir" | "Kurir"; pengalaman: string; kendaraan: string; area: string; status: "Baru" | "Disetujui" | "Ditolak" };
 type Rute = { id: string | number; nama: string; hari: string; jam: string; kap: number; supirId?: string | number };
 type Tarif = {
@@ -52,10 +52,12 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
   const buat = async () => {
     if (!ok || submitting) return;
     setSubmitting(true);
-    const pw = Math.random().toString(36).slice(2, 10);
-    const success = await onCreate({ ...f, nama: f.nama.trim(), email: f.email.trim() }, pw);
+    // Generate random 8 karakter password
+    const generatedPw = Math.random().toString(36).slice(2, 10) + "1A!";
+    
+    const success = await onCreate({ ...f, nama: f.nama.trim(), email: f.email.trim() }, generatedPw);
     if (success) {
-      setRes({ email: f.email.trim(), pw });
+      setRes({ email: f.email.trim(), pw: generatedPw });
     }
     setSubmitting(false);
   };
@@ -63,21 +65,27 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
-        <div className="flex items-center justify-between"><h2 className="font-heading text-xl font-bold">{res ? "Akun dibuat" : "Buat Akun Tim"}</h2><button onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft" aria-label="Tutup"><X size={18} /></button></div>
+        <div className="flex items-center justify-between"><h2 className="font-heading text-xl font-bold">{res ? "Akun Dibuat!" : "Buat Akun Tim"}</h2><button onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft" aria-label="Tutup"><X size={18} /></button></div>
         {res ? (<>
-          <p className="text-sm text-ink/70">Berikan data ini kepada {f.nama}. Kata sandi sementara hanya tampil sekali dan wajib diganti saat login pertama.</p>
-          <div className="space-y-1 rounded-2xl bg-surface p-4 text-sm"><p>Email: <b>{res.email}</b></p><p>Kata sandi: <b className="font-mono text-brand">{res.pw}</b></p></div>
-          <button onClick={() => navigator.clipboard?.writeText(`Email: ${res.email}\nKata sandi: ${res.pw}`)} className={`${out} flex w-full items-center justify-center gap-2`}><Copy size={16} />Salin</button>
+          <p className="text-sm text-ink/70">Salin dan berikan akun ini kepada <b>{f.nama}</b> untuk login pertama kali.</p>
+          <div className="space-y-2 rounded-2xl bg-surface p-4 text-sm border border-brand/20">
+            <p>Email: <b className="font-mono text-ink">{res.email}</b></p>
+            <p>Password Login: <b className="font-mono text-brand text-base select-all">{res.pw}</b></p>
+          </div>
+          <button onClick={() => {
+            navigator.clipboard?.writeText(`Email: ${res.email}\nPassword: ${res.pw}`);
+            alert("Email & Password berhasil disalin!");
+          }} className={`${out} flex w-full items-center justify-center gap-2`}><Copy size={16} />Salin Email & Password</button>
           <button onClick={onClose} className={`${pri} w-full`}>Selesai</button>
         </>) : (<>
           <input value={f.nama} onChange={(e) => setF({ ...f, nama: e.target.value })} placeholder="Nama lengkap" className={inp} />
           <div className="grid grid-cols-2 gap-2">{(["Supir", "Kurir"] as const).map((p) => <button key={p} onClick={() => setF({ ...f, peran: p })} className={`h-11 rounded-xl border-2 font-sub text-sm font-semibold ${f.peran === p ? "border-brand bg-brand/10 text-brand" : "border-soft/50 text-ink"}`}>{p}</button>)}</div>
-          <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="Email login (mis. nama+transport@gmail.com)" className={inp} />
+          <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="Email login (mis. supir@gmail.com)" className={inp} />
           <input value={f.kendaraan} onChange={(e) => setF({ ...f, kendaraan: e.target.value })} placeholder="Kendaraan / plat" className={inp} />
           <input value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} placeholder="Rute atau area tugas" className={inp} />
           <button disabled={!ok || submitting} onClick={buat} className={`${pri} w-full flex items-center justify-center gap-2`}>
             {submitting && <RefreshCw size={16} className="animate-spin" />}
-            {submitting ? "Menyimpan ke Database & Auth..." : "Buat Akun"}
+            {submitting ? "Mendaftarkan Akun..." : "Buat Akun Sekarang"}
           </button>
         </>)}
       </div>
@@ -228,10 +236,9 @@ export default function AdminTransportPage() {
   const badge: Partial<Record<Tab, number>> = { tim: nLam };
   const isOn = (k: Tab) => tab === k;
 
-  // PERBAIKAN: Mendaftarkan ke Supabase Auth + Profil Database
   const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // 1. Daftarkan email dan password ke Supabase Auth
+      // 1. Daftarkan Auth Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: a.email,
         password: pw,
@@ -249,12 +256,12 @@ export default function AdminTransportPage() {
         return false;
       }
 
-      const newUserId = authData.user?.id;
+      const newUserId = authData.user?.id || Date.now().toString();
 
-      // 2. Simpan atau perbarui profil ke tabel 'profiles'
+      // 2. Simpan ke database 'profiles'
       const { error: profileError } = await supabase.from("profiles").upsert([
         {
-          id: newUserId, // Mengaitkan dengan ID Auth Supabase
+          id: newUserId,
           nama: a.nama,
           role: a.peran.toLowerCase(),
           email: a.email,
@@ -269,14 +276,14 @@ export default function AdminTransportPage() {
         return false;
       }
 
-      setTim((t) => [...t, { ...a, id: newUserId || Date.now(), aktif: true }]);
+      setTim((t) => [...t, { ...a, id: newUserId, aktif: true, tempPassword: pw }]);
 
       if (sheet?.prefill) {
         await supabase.from("kurir_lamaran").update({ status: "Disetujui" }).eq("id", sheet.prefill.id);
         setLam((l) => l.map((x) => (x.id === sheet.prefill!.id ? { ...x, status: "Disetujui" } : x)));
       }
 
-      flash("Akun tim berhasil didaftarkan! Supir/Kurir bisa login sekarang.");
+      flash("Akun berhasil didaftarkan!");
       return true;
     } catch (err) {
       console.error(err);
@@ -385,7 +392,9 @@ export default function AdminTransportPage() {
               {tim.map((a) => (
                 <div key={a.id} className={`${card} space-y-2`}>
                   <div className="flex items-center justify-between"><b className="font-heading text-lg">{a.nama}</b><div className="flex gap-1"><Pill>{a.peran}</Pill>{!a.aktif && <Pill dark>Nonaktif</Pill>}</div></div>
-                  <p className="text-sm text-ink/70">{a.kendaraan} · {a.area}</p><p className="font-mono text-xs text-ink/60">{a.email}</p>
+                  <p className="text-sm text-ink/70">{a.kendaraan} · {a.area}</p>
+                  <p className="font-mono text-xs text-ink/60">{a.email}</p>
+                  {a.tempPassword && <p className="text-xs text-brand font-mono font-bold bg-brand/10 p-2 rounded-lg">Password login: {a.tempPassword}</p>}
                   <button onClick={() => toggleAktifAnggota(a)} className={out}>{a.aktif ? "Nonaktifkan" : "Aktifkan lagi"}</button>
                 </div>))}
             </div>
