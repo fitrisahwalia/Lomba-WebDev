@@ -147,7 +147,7 @@ export default function LoginPage() {
 
     switch (targetRole) {
       case "superadmin":
-        targetPath = "/admin/admin-ops/super-admin";
+        targetPath = "/admin/super-admin";
         break;
       case "adminops":
       case "admin":
