@@ -2,18 +2,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export type Role = "pembeli" | "nelayan" | "transport" | "admintransport" | "admin" | "superadmin";
+// PERBAIKAN 1: Tambahkan 'kurir' dan 'supir' ke tipe Role
+export type Role = "pembeli" | "nelayan" | "transport" | "admintransport" | "admin" | "superadmin" | "kurir" | "supir";
 export type Session = { email: string; nama: string; role: Role };
 const KEY = "jalalink_session";
 
-// PERBAIKAN: Arahkan admintransport ke /transport/admin_transport (sesuai folder)
+// PERBAIKAN 2: Daftarkan rute redirect untuk kurir dan supir
 export const HOME: Record<Role, string> = { 
   pembeli: "/katalog", 
   nelayan: "/nelayan", 
   transport: "/transport", 
   admintransport: "/transport/admin_transport", 
   admin: "/admin", 
-  superadmin: "/admin" 
+  superadmin: "/admin",
+  kurir: "/transport/kurir", // atau rute khusus kurir/supir kamu
+  supir: "/transport/supir"  // atau rute khusus kurir/supir kamu
 };
 
 export function getSession(): Session | null {
@@ -47,12 +50,8 @@ export function useSession(allowed?: Role[]) {
     const cur = getSession();
     setS(cur);
     
-    // Hanya lakukan redirect jika allowed diisi DAN cur.role benar-benar tidak diizinkan
     if (allowed && allowed.length > 0) {
-      if (!cur) {
-        // Jika tidak ada sesi lokal, biarkan komponen mengecek Supabase Auth dulu (jangan langsung kick)
-        return;
-      }
+      if (!cur) return;
       if (!allowed.includes(cur.role)) {
         router.replace(HOME[cur.role] || "/login");
       }
