@@ -15,23 +15,10 @@ const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const PT = "CV Bahari Cold Chain";
 const FEE = 10;
 type Tab = "beranda" | "pesanan" | "tim" | "uang" | "akun";
-type Anggota = { id: string | number; nama: string; peran: "Supir" | "Kurir"; email: string; kendaraan: string; area: string; aktif: boolean; tempPassword?: string };
-type Lamaran = { id: string | number; nama: string; peran: "Supir" | "Kurir"; pengalaman: string; kendaraan: string; area: string; status: "Baru" | "Disetujui" | "Ditolak" };
-type Rute = { id: string | number; nama: string; hari: string; jam: string; kap: number; supirId?: string | number };
-type Tarif = {
-  id: string | number;
-  rute: string;
-  aktif: number;
-  tarifNormalMin: number;
-  tarifNormalMax: number;
-  usulan?: number;
-  pengaju?: string;
-  statusUsulan?: "Menunggu" | "Disetujui" | "Ditolak" | "Banding";
-  alasanPenolakan?: string;
-  alasanBanding?: string;
-};
-type OrderItem = { nama: string; qty: number; titik?: string };
-type OrderData = { no: string; status: string; totalOngkir: number; pembeli?: string; alamat?: string; masalah?: boolean; items: OrderItem[] };
+type Anggota = { id: string; nama: string; peran: "Supir" | "Kurir"; email: string; kendaraan: string; area: string; aktif: boolean; tempPassword?: string };
+type Lamaran = { id: number; nama: string; peran: "Supir" | "Kurir"; pengalaman: string; kendaraan: string; area: string; status: string };
+type Rute = { id: number; nama: string; hari: string; kap: number; biaya: number; supirId?: number };
+type OrderData = { id: number; jumlahKg: number; ongkirPerKg: number; status: string };
 
 const inp = "h-11 w-full rounded-xl border border-soft bg-white px-3 text-sm text-ink outline-none placeholder:text-soft focus:border-brand";
 const pri = "h-11 rounded-xl bg-brand px-4 font-sub text-sm font-semibold text-white hover:bg-brand/90 disabled:opacity-40";
@@ -52,7 +39,6 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
   const buat = async () => {
     if (!ok || submitting) return;
     setSubmitting(true);
-    // Generate random 8 karakter password
     const generatedPw = Math.random().toString(36).slice(2, 10) + "1A!";
     
     const success = await onCreate({ ...f, nama: f.nama.trim(), email: f.email.trim() }, generatedPw);
@@ -67,14 +53,14 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
         <div className="flex items-center justify-between"><h2 className="font-heading text-xl font-bold">{res ? "Akun Dibuat!" : "Buat Akun Tim"}</h2><button onClick={onClose} className="grid size-10 place-items-center rounded-full border border-soft" aria-label="Tutup"><X size={18} /></button></div>
         {res ? (<>
-          <p className="text-sm text-ink/70">Salin dan berikan akun ini kepada <b>{f.nama}</b> untuk login pertama kali.</p>
+          <p className="text-sm text-ink/70">Salin dan berikan akun ini kepada <b>{f.nama}</b> untuk login.</p>
           <div className="space-y-2 rounded-2xl bg-surface p-4 text-sm border border-brand/20">
             <p>Email: <b className="font-mono text-ink">{res.email}</b></p>
             <p>Password Login: <b className="font-mono text-brand text-base select-all">{res.pw}</b></p>
           </div>
           <button onClick={() => {
             navigator.clipboard?.writeText(`Email: ${res.email}\nPassword: ${res.pw}`);
-            alert("Email & Password berhasil disalin!");
+            alert("Berhasil disalin!");
           }} className={`${out} flex w-full items-center justify-center gap-2`}><Copy size={16} />Salin Email & Password</button>
           <button onClick={onClose} className={`${pri} w-full`}>Selesai</button>
         </>) : (<>
@@ -93,35 +79,12 @@ function AkunSheet({ prefill, onClose, onCreate }: { prefill: Lamaran | null; on
   );
 }
 
-function TarifRow({ t, onSave }: { t: Tarif; onSave: (p: Partial<Tarif>) => void }) {
-  const [v, setV] = useState(""); const [alasan, setAlasan] = useState("");
-  const n = Number(v), diluar = n > 0 && (n < t.tarifNormalMin || n > t.tarifNormalMax);
-  return (
-    <div className={`${card} space-y-2`}>
-      <div className="flex items-start justify-between gap-2"><div><p className="font-sub font-bold">{t.rute}</p><p className="text-sm text-ink/60">Aktif {rp(t.aktif)}/kg · rentang wajar {rp(t.tarifNormalMin)}–{rp(t.tarifNormalMax)}</p></div>
-        {t.usulan && <Pill dark={t.statusUsulan === "Ditolak"}>{t.statusUsulan}</Pill>}</div>
-      {t.usulan && t.statusUsulan === "Menunggu" && <p className="text-sm text-brand">Usulan {rp(t.usulan)}/kg menunggu persetujuan admin JalaLink.</p>}
-      {t.statusUsulan === "Banding" && <p className="text-sm text-brand">Banding diajukan, menunggu keputusan admin JalaLink.</p>}
-      {t.statusUsulan === "Ditolak" && (<>
-        <p className="text-sm text-ink/70">Usulan {rp(t.usulan ?? 0)} ditolak: {t.alasanPenolakan ?? "tanpa keterangan"}</p>
-        <textarea value={alasan} onChange={(e) => setAlasan(e.target.value)} rows={2} placeholder="Alasan banding (mis. biaya BBM naik)" className={`${inp} h-auto py-2`} />
-        <button disabled={!alasan.trim()} onClick={() => onSave({ statusUsulan: "Banding", alasanBanding: alasan.trim() })} className={out}>Ajukan Banding</button>
-      </>)}
-      {(!t.usulan || t.statusUsulan === "Disetujui") && (<>
-        <div className="flex gap-2"><input value={v} onChange={(e) => setV(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Usulan tarif baru (Rp/kg)" className={inp} /><button disabled={!n} onClick={() => { onSave({ usulan: n, pengaju: PT, statusUsulan: "Menunggu" }); setV(""); }} className={pri}>Ajukan</button></div>
-        {diluar && <p className="flex items-center gap-1 text-xs text-ink/70"><AlertTriangle size={14} className="text-brand" />Di luar rentang wajar, perlu justifikasi saat ditinjau admin JalaLink.</p>}
-      </>)}
-    </div>
-  );
-}
-
 export default function AdminTransportPage() {
   const { logout } = useSession(["admintransport"]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [tim, setTim] = useState<Anggota[]>([]);
   const [lam, setLam] = useState<Lamaran[]>([]);
   const [rute, setRute] = useState<Rute[]>([]);
-  const [tarif, setTarif] = useState<Tarif[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [tab, setTab] = useState<Tab>("beranda");
@@ -134,88 +97,73 @@ export default function AdminTransportPage() {
   const loadDataReal = async () => {
     setLoading(true);
     try {
-      const { data: dataTim } = await supabase
+      // 1. Fetch profiles sesuai skema (role supir & kurir)
+      const { data: dataTim, error: errTim } = await supabase
         .from("profiles")
-        .select("id, nama, role, email, kota_kecamatan, patokan")
-        .in("role", ["supir", "kurir", "Supir", "Kurir"]);
+        .select("id, nama, role, email, area, kendaraan, aktif")
+        .in("role", ["supir", "kurir"]);
+
+      if (errTim) console.error("Error fetch profiles:", errTim);
 
       if (dataTim) {
         setTim(
           dataTim.map((t) => ({
             id: t.id,
-            nama: t.nama || "Tanpa Nama",
-            peran: t.role?.toLowerCase() === "supir" ? "Supir" : "Kurir",
-            email: t.email || "",
-            kendaraan: t.patokan || "-",
-            area: t.kota_kecamatan || "-",
-            aktif: true,
+            nama: t.nama,
+            peran: t.role === "supir" ? "Supir" : "Kurir",
+            email: t.email || "-",
+            kendaraan: t.kendaraan || "-",
+            area: t.area || "-",
+            aktif: t.aktif ?? true,
           }))
         );
       }
 
-      const { data: dataLam } = await supabase.from("kurir_lamaran").select("*");
+      // 2. Fetch lamaran dari tabel 'lamaran_transport'
+      const { data: dataLam } = await supabase.from("lamaran_transport").select("*");
       if (dataLam) {
         setLam(
           dataLam.map((l) => ({
             id: l.id,
-            nama: l.nama || "",
+            nama: l.nama,
             peran: l.peran === "Supir" ? "Supir" : "Kurir",
-            pengalaman: l.pengalaman || "",
-            kendaraan: l.kendaraan || "",
-            area: l.area || "",
+            pengalaman: l.pengalaman || "-",
+            kendaraan: l.kendaraan || "-",
+            area: l.area || "-",
             status: l.status || "Baru",
           }))
         );
       }
 
-      const { data: dataRute } = await supabase.from("rute_pengiriman").select("*");
+      // 3. Fetch rute dari tabel 'rute'
+      const { data: dataRute } = await supabase.from("rute").select("*");
       if (dataRute) {
         setRute(
           dataRute.map((r) => ({
             id: r.id,
-            nama: r.nama || "",
-            hari: r.hari || "Kamis",
-            jam: r.jam || "08.00",
-            kap: r.kapasitas || r.kap || 70,
-            supirId: r.supir_id || r.supirId,
+            nama: r.kota_tujuan,
+            hari: r.hari_berangkat,
+            kap: Number(r.kapasitas_kg),
+            biaya: Number(r.biaya_rute),
+            supirId: r.supir_id,
           }))
         );
       }
 
-      const { data: dataTarif } = await supabase.from("tarif_rute").select("*");
-      if (dataTarif) {
-        setTarif(
-          dataTarif.map((t) => ({
-            id: t.id,
-            rute: t.rute || "",
-            aktif: t.aktif || 0,
-            tarifNormalMin: t.tarif_normal_min || t.tarifNormalMin || 0,
-            tarifNormalMax: t.tarif_normal_max || t.tarifNormalMax || 0,
-            usulan: t.usulan,
-            pengaju: t.pengaju,
-            statusUsulan: t.status_usulan || t.statusUsulan,
-            alasanPenolakan: t.alasan_penolakan || t.alasanPenolakan,
-            alasanBanding: t.alasan_banding || t.alasanBanding,
-          }))
-        );
-      }
-
-      const { data: dataOrders } = await supabase.from("orders").select("*");
+      // 4. Fetch orders dari tabel 'orders'
+      const { data: dataOrders } = await supabase.from("orders").select("id, jumlah_kg, ongkir_per_kg, status_pengiriman");
       if (dataOrders) {
         setOrders(
           dataOrders.map((o) => ({
-            no: o.no || `JL-${o.id}`,
-            status: o.status || "Proses",
-            totalOngkir: o.total_ongkir || o.totalOngkir || 0,
-            pembeli: o.pembeli || o.nama_pembeli,
-            alamat: o.alamat,
-            masalah: o.masalah ?? false,
-            items: typeof o.items === "string" ? JSON.parse(o.items) : o.items || [],
+            id: o.id,
+            jumlahKg: Number(o.jumlah_kg),
+            ongkirPerKg: Number(o.ongkir_per_kg),
+            status: o.status_pengiriman,
           }))
         );
       }
     } catch (err) {
-      console.error("Gagal memuat data dari Supabase:", err);
+      console.error("Gagal memuat data:", err);
     } finally {
       setLoading(false);
     }
@@ -227,18 +175,14 @@ export default function AdminTransportPage() {
 
   const nLam = lam.filter((l) => l.status === "Baru").length;
   const aktif = tim.filter((a) => a.aktif);
-  const bermasalah = orders.filter((o) => o.masalah);
-  const kgRute = (r: Rute) => orders.flatMap((o) => o.items).filter((i) => (i.titik ?? "").replace("TPI ", "") && r.nama.startsWith((i.titik ?? "").replace("TPI ", ""))).reduce((a, i) => a + i.qty, 0);
-  const ongkirTotal = orders.reduce((a, o) => a + o.totalOngkir, 0);
+  const ongkirTotal = orders.reduce((a, o) => a + o.jumlahKg * o.ongkirPerKg, 0);
   const fee = Math.round((ongkirTotal * FEE) / 100);
-  const mine = tarif.filter((t) => rute.some((r) => r.nama === t.rute));
-  const nTarif = mine.filter((t) => t.statusUsulan === "Menunggu" || t.statusUsulan === "Banding").length;
   const badge: Partial<Record<Tab, number>> = { tim: nLam };
   const isOn = (k: Tab) => tab === k;
 
   const buat = async (a: Omit<Anggota, "id" | "aktif">, pw: string): Promise<boolean> => {
     try {
-      // 1. Daftarkan Auth Supabase
+      // 1. Daftarkan Auth ke Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: a.email,
         password: pw,
@@ -252,21 +196,26 @@ export default function AdminTransportPage() {
 
       if (authError) {
         console.error("Error Auth SignUp:", authError);
-        flash(`Gagal daftar Auth: ${authError.message}`);
+        flash(`Gagal Auth: ${authError.message}`);
         return false;
       }
 
-      const newUserId = authData.user?.id || Date.now().toString();
+      const newUserId = authData.user?.id;
+      if (!newUserId) {
+        flash("Gagal mendapatkan User ID.");
+        return false;
+      }
 
-      // 2. Simpan ke database 'profiles'
-      const { error: profileError } = await supabase.from("profiles").upsert([
+      // 2. Simpan ke tabel 'profiles' persis sesuai DDL
+      const { error: profileError } = await supabase.from("profiles").insert([
         {
           id: newUserId,
           nama: a.nama,
           role: a.peran.toLowerCase(),
           email: a.email,
-          kota_kecamatan: a.area,
-          patokan: a.kendaraan,
+          area: a.area,
+          kendaraan: a.kendaraan,
+          aktif: true,
         },
       ]);
 
@@ -279,11 +228,11 @@ export default function AdminTransportPage() {
       setTim((t) => [...t, { ...a, id: newUserId, aktif: true, tempPassword: pw }]);
 
       if (sheet?.prefill) {
-        await supabase.from("kurir_lamaran").update({ status: "Disetujui" }).eq("id", sheet.prefill.id);
+        await supabase.from("lamaran_transport").update({ status: "Disetujui" }).eq("id", sheet.prefill.id);
         setLam((l) => l.map((x) => (x.id === sheet.prefill!.id ? { ...x, status: "Disetujui" } : x)));
       }
 
-      flash("Akun berhasil didaftarkan!");
+      flash("Akun tim berhasil dibuat & siap login!");
       return true;
     } catch (err) {
       console.error(err);
@@ -295,33 +244,14 @@ export default function AdminTransportPage() {
   const toggleAktifAnggota = async (a: Anggota) => {
     const nextState = !a.aktif;
     setTim((t) => t.map((x) => (x.id === a.id ? { ...x, aktif: nextState } : x)));
+    await supabase.from("profiles").update({ aktif: nextState }).eq("id", a.id);
     flash(nextState ? "Akun diaktifkan" : "Akun dinonaktifkan");
   };
 
-  const tolakLamaran = async (id: string | number) => {
+  const tolakLamaran = async (id: number) => {
     setLam((x) => x.map((y) => (y.id === id ? { ...y, status: "Ditolak" } : y)));
-    await supabase.from("kurir_lamaran").update({ status: "Ditolak" }).eq("id", id);
+    await supabase.from("lamaran_transport").update({ status: "Ditolak" }).eq("id", id);
     flash("Lamaran ditolak");
-  };
-
-  const simpanTarifUsulan = async (tId: string | number, p: Partial<Tarif>) => {
-    setTarif((ts) => ts.map((x) => (x.id === tId ? { ...x, ...p } : x)));
-    await supabase
-      .from("tarif_rute")
-      .update({
-        usulan: p.usulan,
-        pengaju: p.pengaju,
-        status_usulan: p.statusUsulan,
-        alasan_banding: p.alasanBanding,
-      })
-      .eq("id", tId);
-    flash("Pengajuan tarif terkirim");
-  };
-
-  const simpanPenugasanSupir = async (ruteId: string | number, supirId?: number | string) => {
-    setRute((rs) => rs.map((x) => (x.id === ruteId ? { ...x, supirId } : x)));
-    await supabase.from("rute_pengiriman").update({ supir_id: supirId }).eq("id", ruteId);
-    flash("Penugasan disimpan");
   };
 
   return (
@@ -347,40 +277,43 @@ export default function AdminTransportPage() {
         {tab === "beranda" && (<>
           <h1 className="font-heading text-2xl font-bold">Halo, {PT}!</h1>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {[["Pesanan masuk", orders.length, "pesanan"], ["Anggota aktif", aktif.length, "tim"], ["Lamaran baru", nLam, "tim"], ["Usulan tarif", nTarif, "uang"]].map(([l, v, k]) => (
+            {[["Pesanan masuk", orders.length, "pesanan"], ["Anggota aktif", aktif.length, "tim"], ["Lamaran baru", nLam, "tim"]].map(([l, v, k]) => (
               <button key={l as string} onClick={() => go(k as Tab)} className={`${card} text-left hover:shadow-md`}><p className="text-xs text-ink/60">{l}</p><p className="font-heading text-2xl font-bold text-brand">{v}</p></button>
             ))}
           </div>
           <section className="space-y-3">
             <h2 className="font-heading text-lg font-bold">Perlu perhatian</h2>
-            {bermasalah.length + nLam + nTarif === 0 && <p className={`${card} text-sm text-ink/60`}>Semua aman. Tidak ada yang perlu ditindak.</p>}
-            {bermasalah.map((o) => <div key={o.no} className={`${card} flex items-center gap-3 text-sm`}><AlertTriangle className="text-brand" size={20} /><span className="flex-1"><b className="font-sub">{o.no}</b> ditandai bermasalah oleh sopir.</span></div>)}
-            {nLam > 0 && <button onClick={() => { go("tim"); setSub("lamaran"); }} className={`${card} flex w-full items-center gap-3 text-left text-sm`}><UserPlus className="text-brand" size={20} /><span className="flex-1"><b className="font-sub">{nLam} lamaran</b> kurir/supir menunggu keputusanmu.</span></button>}
-            {nTarif > 0 && <button onClick={() => go("uang")} className={`${card} flex w-full items-center gap-3 text-left text-sm`}><Wallet className="text-brand" size={20} /><span className="flex-1"><b className="font-sub">{nTarif} usulan tarif</b> menunggu admin JalaLink.</span></button>}
+            {nLam === 0 ? <p className={`${card} text-sm text-ink/60`}>Semua aman. Tidak ada lamaran baru.</p> : (
+              <button onClick={() => { go("tim"); setSub("lamaran"); }} className={`${card} flex w-full items-center gap-3 text-left text-sm`}><UserPlus className="text-brand" size={20} /><span className="flex-1"><b className="font-sub">{nLam} lamaran</b> kurir/supir menunggu keputusanmu.</span></button>
+            )}
           </section>
         </>)}
 
         {tab === "pesanan" && (<>
           <h1 className="font-heading text-2xl font-bold">Rute & Pesanan</h1>
           <div className="grid gap-3 md:grid-cols-2">
-            {rute.map((r) => { const kg = kgRute(r); return (
+            {rute.map((r) => (
               <div key={r.id} className={`${card} space-y-3`}>
-                <div className="flex items-start justify-between"><div><p className="flex items-center gap-1 font-heading text-lg font-bold"><Truck size={18} className="text-brand" />{r.nama}</p><p className="text-sm text-ink/60">{r.hari} · berangkat {r.jam} · kapasitas {r.kap} kg</p></div><Pill>{kg}/{r.kap} kg</Pill></div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-soft/30"><div className="h-full bg-brand transition-all" style={{ width: `${Math.min(100, (kg / r.kap) * 100)}%` }} /></div>
-                <label className="block text-xs text-ink/60">Supir bertugas
-                  <select value={r.supirId ?? ""} onChange={(e) => simpanPenugasanSupir(r.id, e.target.value || undefined)} className={`${inp} mt-1`}>
-                    <option value="">Belum ditugaskan</option>{aktif.filter((a) => a.peran === "Supir").map((a) => <option key={a.id} value={a.id}>{a.nama} · {a.kendaraan}</option>)}
-                  </select></label>
-              </div>); })}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="flex items-center gap-1 font-heading text-lg font-bold"><Truck size={18} className="text-brand" />Ke {r.nama}</p>
+                    <p className="text-sm text-ink/60">Hari: {r.hari} · Kapasitas {r.kap} kg · Biaya {rp(r.biaya)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           <h2 className="font-heading text-lg font-bold">Pesanan masuk</h2>
-          {orders.length === 0 ? <p className={`${card} text-sm text-ink/60`}>Belum ada pesanan. Pesanan pembeli akan muncul di sini.</p> : (
-            <div className="grid gap-3 md:grid-cols-2">{orders.map((o) => (
-              <div key={o.no} className={`${card} space-y-1`}>
-                <div className="flex items-center justify-between"><span className="font-sub text-sm font-semibold text-ink/60">{o.no}</span><div className="flex gap-1">{o.masalah && <Pill dark>Bermasalah</Pill>}<Pill dark={o.status === "Selesai"}>{o.status}</Pill></div></div>
-                {o.items.map((i, n) => <p key={n} className="font-sub font-bold">{i.qty} kg {i.nama} <span className="font-normal text-ink/60">· {i.titik ?? "-"}</span></p>)}
-                <p className="flex items-center gap-1 text-sm text-ink/60"><MapPin size={13} />{o.pembeli ?? "Pembeli"} · {o.alamat ?? "-"}</p>
-              </div>))}</div>)}
+          {orders.length === 0 ? <p className={`${card} text-sm text-ink/60`}>Belum ada pesanan terdaftar di database.</p> : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {orders.map((o) => (
+                <div key={o.id} className={`${card} space-y-1`}>
+                  <div className="flex items-center justify-between"><span className="font-sub text-sm font-semibold text-ink/60">Order #{o.id}</span><Pill>{o.status}</Pill></div>
+                  <p className="font-sub font-bold">{o.jumlahKg} kg · Ongkir/kg: {rp(o.ongkirPerKg)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </>)}
 
         {tab === "tim" && (<>
@@ -392,7 +325,7 @@ export default function AdminTransportPage() {
               {tim.map((a) => (
                 <div key={a.id} className={`${card} space-y-2`}>
                   <div className="flex items-center justify-between"><b className="font-heading text-lg">{a.nama}</b><div className="flex gap-1"><Pill>{a.peran}</Pill>{!a.aktif && <Pill dark>Nonaktif</Pill>}</div></div>
-                  <p className="text-sm text-ink/70">{a.kendaraan} · {a.area}</p>
+                  <p className="text-sm text-ink/70">Kendaraan: {a.kendaraan} · Area: {a.area}</p>
                   <p className="font-mono text-xs text-ink/60">{a.email}</p>
                   {a.tempPassword && <p className="text-xs text-brand font-mono font-bold bg-brand/10 p-2 rounded-lg">Password login: {a.tempPassword}</p>}
                   <button onClick={() => toggleAktifAnggota(a)} className={out}>{a.aktif ? "Nonaktifkan" : "Aktifkan lagi"}</button>
@@ -404,23 +337,17 @@ export default function AdminTransportPage() {
               {lam.map((l) => (
                 <div key={l.id} className={`${card} space-y-2`}>
                   <div className="flex items-center justify-between"><b className="font-heading text-lg">{l.nama}</b><div className="flex gap-1"><Pill>{l.peran}</Pill><Pill dark={l.status !== "Baru"}>{l.status}</Pill></div></div>
-                  <p className="text-sm text-ink/70">{l.pengalaman}</p><p className="text-sm text-ink/60">{l.kendaraan} · {l.area}</p>
+                  <p className="text-sm text-ink/70">Pengalaman: {l.pengalaman}</p>
+                  <p className="text-sm text-ink/60">Kendaraan: {l.kendaraan} · Area: {l.area}</p>
                   {l.status === "Baru" && <div className="flex gap-2"><button onClick={() => setSheet({ prefill: l })} className={`${pri} flex items-center gap-1`}><Check size={16} />Setujui & buat akun</button><button onClick={() => tolakLamaran(l.id)} className={out}>Tolak</button></div>}
                 </div>))}
             </div>)}
         </>)}
 
         {tab === "uang" && (<>
-          <h1 className="font-heading text-2xl font-bold">Keuangan & Tarif</h1>
+          <h1 className="font-heading text-2xl font-bold">Keuangan</h1>
           <div className="grid grid-cols-3 gap-3">
             {[["Ongkir kotor", rp(ongkirTotal)], [`Fee platform ${FEE}%`, rp(fee)], ["Diterima transport", rp(ongkirTotal - fee)]].map(([l, v]) => <div key={l} className={card}><p className="text-xs text-ink/60">{l}</p><p className="font-heading text-lg font-bold text-brand md:text-2xl">{v}</p></div>)}
-          </div>
-          <p className="text-xs text-ink/60">Fee platform ditetapkan super admin JalaLink dan dipotong dari ongkir. Nilai ikan menjadi hak nelayan.</p>
-          <h2 className="font-heading text-lg font-bold">Tarif rute (flat per kg)</h2>
-          <p className="text-sm text-ink/60">Perubahan tarif tidak berlaku langsung: diajukan dulu, lalu disetujui admin JalaLink dan hanya berlaku untuk pesanan berikutnya.</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {mine.length === 0 && <p className={`${card} text-sm text-ink/60`}>Belum ada tarif rute di database.</p>}
-            {mine.map((t) => <TarifRow key={t.id} t={t} onSave={(p) => simpanTarifUsulan(t.id, p)} />)}
           </div>
         </>)}
 
@@ -428,9 +355,6 @@ export default function AdminTransportPage() {
           <div className="mx-auto max-w-2xl space-y-4">
             <h1 className="font-heading text-2xl font-bold">Akun Perusahaan</h1>
             <div className="flex items-center gap-4 rounded-2xl bg-surface p-5"><div className="grid size-16 place-items-center rounded-full bg-brand font-heading text-2xl font-bold text-white">B</div><div className="flex-1"><p className="font-heading text-lg font-bold">{PT}</p><p className="text-sm text-ink/60">Mitra transport · ops@bahari.id</p></div><Pill>Disetujui</Pill></div>
-            <div className={`${card} space-y-3 text-sm`}>
-              {[["Terdaftar sebagai mitra", true], ["Disetujui admin JalaLink", true], ["Tim aktif", aktif.length > 0]].map(([l, ok]) => <p key={l as string} className="flex items-center gap-3"><span className={`grid size-6 place-items-center rounded-full ${ok ? "bg-brand text-white" : "border border-soft"}`}>{ok ? <Check size={14} /> : null}</span>{l as string}</p>)}
-            </div>
             <button onClick={logout} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-soft bg-white font-sub font-semibold hover:bg-surface"><LogOut size={18} />Keluar</button>
           </div>
         )}
